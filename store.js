@@ -800,7 +800,7 @@ function StoreProvider({
     sb.from("user_data")
       .select("data, updated_at")
       .eq("user_id", deviceId.current)
-      .single()
+      .maybeSingle()
       .then(({ data, error }) => {
         if (error || !data) return; // no cloud data yet, that's fine
         dispatch({ type: "IMPORT_STATE", payload: data.data });
