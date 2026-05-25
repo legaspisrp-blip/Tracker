@@ -17,5 +17,5 @@
 // own data. Never paste the "service_role" key here.
 // ============================================================================
 
-window.SUPABASE_URL      = "";   // e.g. "https://abcdefgh.supabase.co"
-window.SUPABASE_ANON_KEY = "";   // long string starting with "eyJ..."
+window.SUPABASE_URL      = "https://rrrzwidshbmkjotylvjr.supabase.co"
+window.SUPABASE_ANON_KEY = "sb_publishable_ORjkFDtsrgtSQ51WcymdwQ_AAvpjdSX"
