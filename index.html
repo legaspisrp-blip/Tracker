@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger · Personal Finance Dashboard</title>
+
+  <!--
+    Content Security Policy — strict. No unsafe-eval needed because all JSX
+    is pre-compiled to plain JavaScript. Babel-in-browser was the only thing
+    requiring unsafe-eval; we removed it.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://unpkg.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data:;
+    connect-src 'self';
+    base-uri 'self';
+    form-action 'self';
+  ">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+    body {
+      font-family: "Inter", -apple-system, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #root { min-height: 100vh; }
+    button { font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    input[type="range"] { accent-color: var(--accent); }
+    ::selection { background: var(--accent-soft); color: var(--text); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid transparent; background-clip: content-box; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background-color: var(--border-hi); background-clip: content-box; }
+    @media print {
+      body { background: white !important; color: black !important; }
+      aside, header, [data-no-print] { display: none !important; }
+      main { width: 100% !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!--
+    Production React (minified, no in-browser compiler). All app code is
+    pre-compiled from .jsx → .js so the runtime never needs eval().
+  -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+
+  <script src="theme.js"></script>
+  <script src="ui.js"></script>
+  <script src="store.js"></script>
+  <script src="charts.js"></script>
+  <script src="shell.js"></script>
+  <script src="screens-transactions.js"></script>
+  <script src="screens-overview.js"></script>
+  <script src="screens-calendar.js"></script>
+  <script src="screens-debt.js"></script>
+  <script src="screens-plan.js"></script>
+  <script src="screens-analyze.js"></script>
+  <script src="screens-reports.js"></script>
+  <script src="screens-settings.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
