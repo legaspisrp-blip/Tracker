@@ -27,6 +27,7 @@ function TransactionForm({
     accountId: state.cashAccounts[0]?.id || "",
     debtId: null,
     creditId: null,
+    chargedCreditId: null,
     note: ""
   };
   const [form, setForm] = useState(initial);
@@ -89,7 +90,8 @@ function TransactionForm({
       categoryId: form.categoryId || null,
       accountId: form.accountId || null,
       debtId: form.debtId || null,
-      creditId: form.creditId || null
+      creditId: form.creditId || null,
+      chargedCreditId: form.chargedCreditId || null
     };
     if (editing) {
       actions.updateTransaction(tx.id, payload);
@@ -308,7 +310,7 @@ function TransactionsTable({
     })
   }))), /*#__PURE__*/React.createElement("tbody", null, rows.map(r => {
     const cat = state.categories.find(c => c.id === r.categoryId);
-    const acct = state.cashAccounts.find(a => a.id === r.accountId);
+    const acct = state.cashAccounts.find(a => a.id === r.accountId) || (r.chargedCreditId ? { name: `💳 ${state.creditAccounts.find(c => c.id === r.chargedCreditId)?.name || "Credit"}` } : null);
     const isIn = r.kind === "income";
     return /*#__PURE__*/React.createElement("tr", {
       key: r.id,
