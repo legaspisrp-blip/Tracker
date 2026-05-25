@@ -21,7 +21,6 @@ const EMPTY_STATE = {
     role: "owner",
     name: ""
   },
-  // null = logged out
   settings: {
     currency: "PHP",
     locale: "en-PH",
@@ -735,13 +734,38 @@ function computeHealth({
 // ---------------------------------------------------------------------------
 // CONTEXT + PROVIDER + HOOK
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// SUPABASE — optional cloud sync. Works only when supabase-config.js is filled.
+// Falls back to localStorage-only if credentials are missing.
+// ---------------------------------------------------------------------------
+const DEVICE_ID_KEY = "ledger:device-id";
+
+function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = "device_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+function getSupabaseClient() {
+  try {
+    const url = window.SUPABASE_URL;
+    const key = window.SUPABASE_ANON_KEY;
+    if (!url || !key || url.includes("your-project") || key.includes("your-anon")) return null;
+    return window.supabase.createClient(url, key);
+  } catch (e) {
+    return null;
+  }
+}
+
 const StoreContext = React.createContext(null);
 function loadInitial() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return EMPTY_STATE;
     const parsed = JSON.parse(raw);
-    // Force role to "owner" — login flow removed
     return {
       ...EMPTY_STATE,
       ...parsed,
@@ -756,14 +780,52 @@ function StoreProvider({
   children
 }) {
   const [state, dispatch] = React.useReducer(reducer, undefined, loadInitial);
+  const supabaseRef = React.useRef(getSupabaseClient());
+  const deviceId = React.useRef(getDeviceId());
+  const saveTimerRef = React.useRef(null);
 
-  // Persist on every change
+  // Persist to localStorage on every change
   React.useEffect(() => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(state));
     } catch (e) {
       console.warn("Ledger: failed to persist state", e);
     }
+  }, [state]);
+
+  // Load from Supabase on first mount (overrides localStorage if cloud is newer)
+  React.useEffect(() => {
+    const sb = supabaseRef.current;
+    if (!sb) return;
+    sb.from("user_data")
+      .select("data, updated_at")
+      .eq("user_id", deviceId.current)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) return; // no cloud data yet, that's fine
+        dispatch({ type: "IMPORT_STATE", payload: data.data });
+        console.log("Ledger: loaded from Supabase ✓");
+      });
+  // eslint-disable-next-line
+  }, []);
+
+  // Save to Supabase on every state change (debounced 1.5s)
+  React.useEffect(() => {
+    const sb = supabaseRef.current;
+    if (!sb) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      sb.from("user_data")
+        .upsert({
+          user_id: deviceId.current,
+          data: state,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" })
+        .then(({ error }) => {
+          if (error) console.warn("Ledger: Supabase save failed", error);
+        });
+    }, 1500);
+    return () => clearTimeout(saveTimerRef.current);
   }, [state]);
 
   // ---- Actions (stable references would be nice but we recompute; cheap) ----
@@ -938,7 +1000,6 @@ function StoreProvider({
   // Auto-generate recurring transactions whose dueDay <= today and not yet generated this month.
   // Runs whenever recurring rules change or on first mount.
   React.useEffect(() => {
-    if (!state.session.role) return;
     const today = new Date();
     let dispatched = false;
     for (const r of state.recurring) {
@@ -970,7 +1031,7 @@ function StoreProvider({
       dispatched = true;
     }
     // eslint-disable-next-line
-  }, [state.recurring.length, state.session.role]);
+  }, [state.recurring.length]);
   return /*#__PURE__*/React.createElement(StoreContext.Provider, {
     value: {
       state,

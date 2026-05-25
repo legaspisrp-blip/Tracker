@@ -1,8 +1,6 @@
 // ============================================================================
-// app.jsx — Root with Supabase-aware gating.
-//
-//   Offline mode (no Supabase config)  → app loads immediately, localStorage
-//   Online mode  (Supabase configured) → require sign-in → cloud sync
+// app.jsx — Root. Routing, theme application, global add-tx modal.
+// Login gate removed — app opens directly as Owner.
 // ============================================================================
 
 function App() {
@@ -13,8 +11,6 @@ function App() {
   } = useStore();
   const [active, setActive] = useState("overview");
   const [showAddTx, setShowAddTx] = useState(false);
-  const [session, setSession] = useState(undefined); // undefined = checking; null = no session; {...} = signed in
-  const cloudEnabled = isSupabaseEnabled();
 
   // Apply theme as CSS vars on body
   useEffect(() => {
@@ -26,48 +22,9 @@ function App() {
     document.body.style.fontFamily = vars["--font-ui"];
   }, [state.settings.variant, state.settings.mode, state.settings.accent]);
 
-  // Always-on perms (single-user app — Owner only after login removal)
-  const perms = ROLE_PERMS.owner;
+  const perms = ROLE_PERMS["owner"];
 
-  // Redirect away from any screen the user isn't allowed on
-  useEffect(() => {
-    if (!perms.canSee.includes(active)) {
-      setActive(perms.canSee[0] || "overview");
-    }
-  }, [active]);
-
-  // CloudSync component handles auth subscription + data sync.
-  // It must render INSIDE the StoreProvider (which we already are).
-  const cloudBridge = cloudEnabled ? /*#__PURE__*/React.createElement(CloudSync, {
-    session: session,
-    setSession: setSession
-  }) : null;
-
-  // While Supabase is checking initial session, show a tiny loader
-  if (cloudEnabled && session === undefined) {
-    return /*#__PURE__*/React.createElement(React.Fragment, null, cloudBridge, /*#__PURE__*/React.createElement("div", {
-      style: {
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--bg)",
-        color: "var(--muted)",
-        fontFamily: "var(--font-ui)",
-        fontSize: 13
-      }
-    }, "Loading\u2026"));
-  }
-
-  // Supabase configured but no session → show auth screen
-  if (cloudEnabled && session === null) {
-    return /*#__PURE__*/React.createElement(React.Fragment, null, cloudBridge, /*#__PURE__*/React.createElement(AuthScreen, {
-      onSignedIn: () => {}
-    }));
-  }
-
-  // Either offline mode, or signed-in → show app
-  return /*#__PURE__*/React.createElement(React.Fragment, null, cloudBridge, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", {
     style: {
       minHeight: "100vh",
       display: "flex",
@@ -77,9 +34,7 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement(Sidebar, {
     active: active,
-    setActive: setActive,
-    cloudEnabled: cloudEnabled,
-    session: session
+    setActive: setActive
   }), /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -98,16 +53,29 @@ function App() {
       flex: 1,
       overflow: "auto"
     }
-  }, active === "overview" && /*#__PURE__*/React.createElement(OverviewScreen, {
-    setActive: setActive,
-    openAddTx: () => setShowAddTx(true)
-  }), active === "cash" && /*#__PURE__*/React.createElement(CashCheckerScreen, null), active === "transactions" && /*#__PURE__*/React.createElement(TransactionsScreen, null), active === "expenses" && /*#__PURE__*/React.createElement(ExpensesScreen, null), active === "income" && /*#__PURE__*/React.createElement(IncomeScreen, null), active === "calendar" && /*#__PURE__*/React.createElement(CalendarScreen, null), active === "debt" && /*#__PURE__*/React.createElement(DebtScreen, null), active === "credit" && /*#__PURE__*/React.createElement(CreditScreen, null), active === "health" && /*#__PURE__*/React.createElement(HealthScreen, {
-    setActive: setActive
-  }), active === "forecast" && /*#__PURE__*/React.createElement(ForecastScreen, null), active === "coach" && /*#__PURE__*/React.createElement(MoneyCoachScreen, null), active === "budgets" && /*#__PURE__*/React.createElement(BudgetsScreen, null), active === "goals" && /*#__PURE__*/React.createElement(GoalsScreen, null), active === "subscriptions" && /*#__PURE__*/React.createElement(RecurringScreen, null), active === "report" && /*#__PURE__*/React.createElement(ReportScreen, null), active === "settings" && /*#__PURE__*/React.createElement(SettingsScreen, null))), /*#__PURE__*/React.createElement(TransactionForm, {
+  }, /*#__PURE__*/React.createElement(React.Fragment, null,
+    active === "overview" && /*#__PURE__*/React.createElement(OverviewScreen, { setActive: setActive, openAddTx: () => setShowAddTx(true) }),
+    active === "cash" && /*#__PURE__*/React.createElement(CashCheckerScreen, null),
+    active === "transactions" && /*#__PURE__*/React.createElement(TransactionsScreen, null),
+    active === "expenses" && /*#__PURE__*/React.createElement(ExpensesScreen, null),
+    active === "income" && /*#__PURE__*/React.createElement(IncomeScreen, null),
+    active === "calendar" && /*#__PURE__*/React.createElement(CalendarScreen, null),
+    active === "debt" && /*#__PURE__*/React.createElement(DebtScreen, null),
+    active === "credit" && /*#__PURE__*/React.createElement(CreditScreen, null),
+    active === "health" && /*#__PURE__*/React.createElement(HealthScreen, { setActive: setActive }),
+    active === "forecast" && /*#__PURE__*/React.createElement(ForecastScreen, null),
+    active === "coach" && /*#__PURE__*/React.createElement(MoneyCoachScreen, null),
+    active === "budgets" && /*#__PURE__*/React.createElement(BudgetsScreen, null),
+    active === "goals" && /*#__PURE__*/React.createElement(GoalsScreen, null),
+    active === "subscriptions" && /*#__PURE__*/React.createElement(RecurringScreen, null),
+    active === "report" && /*#__PURE__*/React.createElement(ReportScreen, null),
+    active === "settings" && /*#__PURE__*/React.createElement(SettingsScreen, null)
+  ))), /*#__PURE__*/React.createElement(TransactionForm, {
     open: showAddTx,
     onClose: () => setShowAddTx(false)
-  })));
+  }));
 }
+
 function Root() {
   return /*#__PURE__*/React.createElement(StoreProvider, null, /*#__PURE__*/React.createElement(ToastProvider, null, /*#__PURE__*/React.createElement(App, null)));
 }
