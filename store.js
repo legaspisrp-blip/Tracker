@@ -54,6 +54,7 @@ function reducer(state, action) {
       if (tx.debtId) updatedDebts = recordDebtTxOnDebts(state.debts, tx, "apply");
       let updatedCreds = state.creditAccounts;
       if (tx.creditId) updatedCreds = recordCreditTxOnCredits(state.creditAccounts, tx, "apply");
+      if (tx.chargedCreditId) updatedCreds = chargeCreditAccount(updatedCreds, tx, "apply");
       return { ...state, transactions: [...state.transactions, tx], cashAccounts: updatedAccounts, debts: updatedDebts, creditAccounts: updatedCreds };
     }
     case "UPDATE_TRANSACTION": {
@@ -65,7 +66,9 @@ function reducer(state, action) {
       let debts = prev.debtId ? recordDebtTxOnDebts(state.debts, prev, "reverse") : state.debts;
       if (next.debtId) debts = recordDebtTxOnDebts(debts, next, "apply");
       let credits = prev.creditId ? recordCreditTxOnCredits(state.creditAccounts, prev, "reverse") : state.creditAccounts;
+      if (prev.chargedCreditId) credits = chargeCreditAccount(credits, prev, "reverse");
       if (next.creditId) credits = recordCreditTxOnCredits(credits, next, "apply");
+      if (next.chargedCreditId) credits = chargeCreditAccount(credits, next, "apply");
       return { ...state, transactions: state.transactions.map(t => t.id === action.id ? next : t), cashAccounts: accs, debts, creditAccounts: credits };
     }
     case "DELETE_TRANSACTION": {
@@ -73,7 +76,8 @@ function reducer(state, action) {
       if (!prev) return state;
       const accs = applyTxToAccounts(state.cashAccounts, prev, "reverse");
       const debts = prev.debtId ? recordDebtTxOnDebts(state.debts, prev, "reverse") : state.debts;
-      const credits = prev.creditId ? recordCreditTxOnCredits(state.creditAccounts, prev, "reverse") : state.creditAccounts;
+      let credits = prev.creditId ? recordCreditTxOnCredits(state.creditAccounts, prev, "reverse") : state.creditAccounts;
+      if (prev.chargedCreditId) credits = chargeCreditAccount(credits, prev, "reverse");
       return { ...state, transactions: state.transactions.filter(t => t.id !== action.id), cashAccounts: accs, debts, creditAccounts: credits };
     }
     case "ADD_DEBT": return { ...state, debts: [...state.debts, { id: uid("debt"), paidMonths: 0, status: "active", ...action.payload }] };
@@ -108,6 +112,15 @@ function reducer(state, action) {
 
 function uid(prefix) { return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7); }
 function round2(n) { return Math.round(n * 100) / 100; }
+// Increase credit balance when charging a purchase to a credit account
+function chargeCreditAccount(credits, tx, direction) {
+  if (!tx.chargedCreditId) return credits;
+  const sign = direction === "apply" ? 1 : -1;
+  return credits.map(c => {
+    if (c.id !== tx.chargedCreditId) return c;
+    return { ...c, balance: round2((c.balance || 0) + tx.amount * sign) };
+  });
+}
 function applyTxToAccounts(accounts, tx, direction) {
   if (!tx.accountId) return accounts;
   const sign = direction === "apply" ? 1 : -1;
