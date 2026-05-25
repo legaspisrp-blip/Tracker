@@ -812,8 +812,6 @@ function StoreProvider({
             }));
         } catch(e) {}
         console.log("Ledger: loaded from Supabase ✓");
-        // Reload the page to show the synced data
-        window.location.reload();
       });
   // eslint-disable-next-line
   }, []);
