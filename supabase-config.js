@@ -17,5 +17,5 @@
 // own data. Never paste the "service_role" key here.
 // ============================================================================
 
-window.SUPABASE_URL      = "https://rrrzwidshbmkjotylvjr.supabase.co"
-window.SUPABASE_ANON_KEY = "sb_publishable_ORjkFDtsrgtSQ51WcymdwQ_AAvpjdSX"
+window.SUPABASE_URL      = https://rrrzwidshbmkjotylvjr.supabase.co
+window.SUPABASE_ANON_KEY = sb_publishable_ORjkFDtsrgtSQ51WcymdwQ_AAvpjdSX
