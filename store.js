@@ -802,9 +802,18 @@ function StoreProvider({
       .eq("user_id", deviceId.current)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (error || !data) return; // no cloud data yet, that's fine
+        if (error || !data) return;
         dispatch({ type: "IMPORT_STATE", payload: data.data });
+        // Force write to localStorage immediately so UI re-renders with cloud data
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify({
+            ...data.data,
+            session: { role: "owner", name: "" }
+            }));
+        } catch(e) {}
         console.log("Ledger: loaded from Supabase ✓");
+        // Reload the page to show the synced data
+        window.location.reload();
       });
   // eslint-disable-next-line
   }, []);
