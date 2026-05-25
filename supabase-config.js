@@ -18,3 +18,5 @@
 // ============================================================================
 window.SUPABASE_URL      = "https://rrrzwidshbmkjotylvjr.supabase.co";
 window.SUPABASE_ANON_KEY = "sb_publishable_ORjkFDtsrgtSQ51WcymdwQ_AAvpjdSX";
+
+window.isSupabaseEnabled = () => !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY);
