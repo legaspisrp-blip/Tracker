@@ -1,38 +1,29 @@
 -- ============================================================================
--- Ledger · Supabase schema
+-- Ledger · Supabase schema (no-auth version)
 -- Run this ONCE in your Supabase project's SQL editor.
 -- (Dashboard → SQL Editor → New Query → paste this → Run)
+--
+-- This version uses a device ID (stored in localStorage) instead of auth.
+-- No login required. One device = one row in this table.
 -- ============================================================================
 
--- One row per user. All app data lives in the `data` jsonb column.
--- Conflict model: last-write-wins. Perfect for single-user-per-account.
+-- Drop old table if you ran the previous schema
+drop table if exists public.user_data;
+
+-- One row per device. All app data lives in the `data` jsonb column.
 create table if not exists public.user_data (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
+  user_id    text primary key,        -- device ID from localStorage (no auth)
   data       jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
--- Enable Row-Level Security: every user only sees their own row.
-alter table public.user_data enable row level security;
+-- Disable Row-Level Security (no auth = no per-user isolation needed)
+alter table public.user_data disable row level security;
 
--- Allow each authenticated user to read and write their own row.
-drop policy if exists "user_data_select_own" on public.user_data;
-create policy "user_data_select_own"
-  on public.user_data for select
-  using (auth.uid() = user_id);
+-- Allow the anon key to read and write freely
+grant select, insert, update, delete on public.user_data to anon;
 
-drop policy if exists "user_data_insert_own" on public.user_data;
-create policy "user_data_insert_own"
-  on public.user_data for insert
-  with check (auth.uid() = user_id);
-
-drop policy if exists "user_data_update_own" on public.user_data;
-create policy "user_data_update_own"
-  on public.user_data for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- Keep updated_at fresh on writes.
+-- Keep updated_at fresh on every write
 create or replace function public.touch_user_data_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -47,5 +38,4 @@ create trigger set_user_data_updated_at
   for each row execute function public.touch_user_data_updated_at();
 
 -- Done. Verify with:
---   select * from public.user_data;        -- empty
---   select * from auth.users;              -- empty until first sign-up
+--   select * from public.user_data;    -- empty until first app load
