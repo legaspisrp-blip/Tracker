@@ -1,12 +1,15 @@
 # Setup instructions
 
-Read this first. Total time: 3–5 minutes.
+Two ways to run this app:
+
+- **Offline mode** — works out of the box. Data lives only in your browser.
+- **Cloud mode** — sign-up + email/password + sync across devices via Supabase (free).
+
+Pick the one you need.
 
 ---
 
 ## What you have
-
-A complete personal-finance web app in this folder. **No build step. No npm install. No backend.** Open `index.html` in a browser and it runs.
 
 ```
 ledger/
@@ -14,144 +17,165 @@ ledger/
 ├── README.md                  ← technical docs
 ├── SETUP.md                   ← you are here
 ├── .gitignore
-├── app.js                     ← root component
+│
+├── supabase-config.js         ← EDIT THIS to enable cloud sync
+├── supabase-schema.sql        ← Run this ONCE in Supabase SQL editor
+├── supabase-sync.js           ← Supabase wrapper (don't edit)
+├── cloud-bridge.js            ← Sync glue (don't edit)
+│
+├── app.js                     ← root
 ├── theme.js                   ← colors & fonts
-├── store.js                   ← data layer (saves to your browser)
-├── ui.js                      ← buttons, inputs, modals
+├── store.js                   ← data layer
+├── ui.js                      ← buttons, modals
 ├── charts.js                  ← chart drawing
 ├── shell.js                   ← sidebar + topbar
-├── login.js                   ← sign-in screen
-├── screens-overview.js        ← Overview + Cash Checker
-├── screens-transactions.js    ← Transactions / Expenses / Income
-├── screens-calendar.js        ← Calendar
-├── screens-debt.js            ← Debt + Credit accounts
-├── screens-plan.js            ← Budgets + Goals + Recurring
-├── screens-analyze.js         ← Health + Forecast + Coach
-├── screens-reports.js         ← Monthly reports
-└── screens-settings.js        ← Settings
+├── screens-overview.js
+├── screens-transactions.js
+├── screens-calendar.js
+├── screens-debt.js
+├── screens-plan.js
+├── screens-analyze.js
+├── screens-reports.js
+└── screens-settings.js
 ```
 
-**All 18 files must stay together in the same folder.** Don't rename anything.
-The `.js` files are pre-compiled — no build step needed at deploy time, and no in-browser code evaluation (CSP-strict friendly).
+All files must stay together. Don't rename anything.
 
 ---
 
-## Option A · Just open it on your computer
+## Option 1 · Offline mode (zero setup)
 
-Double-click `index.html`.
+1. Open `index.html` in a browser (or serve the folder).
+2. Done. The app opens straight to the dashboard. Data saves to your browser.
 
-That's it. The app opens in your default browser. Your data saves automatically to that browser. If you change browsers, your data won't follow — back it up from **Settings → Data**.
-
-**If double-clicking doesn't work** (some browsers block JavaScript loaded over `file://`), use Option B.
+**Limitation:** data lives in one browser on one device. Use **Settings → Data → Backup all data (JSON)** to back up.
 
 ---
 
-## Option B · Run it as a tiny local site
+## Option 2 · Cloud mode with Supabase (recommended)
 
-Open a terminal in this folder, then:
+Adds: real email/password accounts, sync across laptop/phone/tablet, secure per-user data.
 
-```bash
-# Mac / Linux
-python3 -m http.server 8080
+### Step 1 · Create a free Supabase project
 
-# Windows (in PowerShell)
-python -m http.server 8080
+1. Go to **[supabase.com](https://supabase.com)** and sign up (free, no credit card).
+2. Click **New project**.
+   - Name: anything (e.g. `ledger`)
+   - Database password: pick a strong one (you won't need it again for normal use)
+   - Region: pick one near you (e.g. Southeast Asia for the Philippines)
+3. Wait ~2 minutes for the project to provision.
+
+### Step 2 · Set up the database
+
+1. In your Supabase dashboard, click **SQL Editor** in the left sidebar.
+2. Click **+ New query**.
+3. Open `supabase-schema.sql` from this folder, copy the entire contents, paste into the editor.
+4. Click **Run**.
+5. You should see "Success. No rows returned." That's correct.
+
+This creates the `user_data` table with Row-Level Security so each user only sees their own data.
+
+### Step 3 · Get your project credentials
+
+1. In your Supabase dashboard, click **Project Settings** (gear icon) → **API**.
+2. Copy two values:
+   - **Project URL** — looks like `https://abcdefghij.supabase.co`
+   - **anon public key** — long string starting with `eyJ...`
+
+> ⚠️ Use the **anon key**, NOT the **service_role** key. The anon key is safe to commit to your repo because Row-Level Security protects the data.
+
+### Step 4 · Configure the app
+
+Open `supabase-config.js` in any text editor. Paste your values:
+
+```js
+window.SUPABASE_URL      = "https://abcdefghij.supabase.co";
+window.SUPABASE_ANON_KEY = "eyJ...your-anon-key-here";
 ```
 
-Open your browser to **http://localhost:8080**.
+Save the file.
+
+### Step 5 · (Optional but recommended) Configure email auth
+
+In your Supabase dashboard:
+
+1. **Authentication → Providers → Email** — make sure it's **enabled** (default).
+2. **Authentication → URL Configuration** — set your **Site URL** to where you're hosting (e.g. `https://yourname.github.io/ledger-app/` or `http://localhost:8080` for local testing). This makes magic-link emails redirect correctly.
+3. **(Optional)** Turn OFF "Confirm email" if you want users to sign in without email verification: **Authentication → Sign In / Up → Email** → uncheck "Confirm email". Easier for testing; more secure with it on.
+
+### Step 6 · Deploy
+
+Same as offline mode — drop the whole folder into:
+- **GitHub Pages** (Settings → Pages → Deploy from branch / root), OR
+- **Vercel** (import repo, framework: Other, no build), OR
+- **Netlify** (drag-and-drop at [app.netlify.com/drop](https://app.netlify.com/drop))
+
+### Step 7 · Sign up and use it
+
+1. Open the deployed site (or `index.html` locally).
+2. You'll see a real sign-in screen with three tabs: **Sign in · Create account · Magic link**.
+3. Click **Create account**, enter email + password (6+ chars), submit.
+4. (If you enabled email confirmation) Check your email for the confirmation link.
+5. Sign in. Your data now syncs to Supabase automatically — every change pushes within 1 second.
+
+Sign in on a different device with the same email/password → all your data appears.
 
 ---
 
-## Option C · Put it on the internet (free)
+## Important notes
 
-### GitHub Pages (recommended — free, easiest)
+### How sync works
+- Every change you make is debounced 0.8 seconds, then uploaded as a single JSON blob to your `user_data` row.
+- When you sign in on a new device, the app pulls your latest data and replaces local state.
+- **Conflict model:** last-write-wins. If you edit on two devices at the same time, the most recent save wins. Fine for personal use.
 
-1. Create a new GitHub repo. Any name works (e.g. `my-ledger`).
-2. Upload all 18 files in this folder to the repo root.
-   - Easiest: drag-and-drop them in the GitHub web interface, or use GitHub Desktop.
-3. In the repo, click **Settings → Pages** (left sidebar).
-4. Under "Source," pick **Deploy from a branch**.
-5. Under "Branch," pick **main** and the folder **/ (root)**. Save.
-6. Wait about 1 minute. GitHub shows you a URL like
-   `https://<your-username>.github.io/my-ledger/`
-7. Open the URL. Done.
+### Privacy
+- Row-Level Security means even with the anon key, users can only read/write their own row. Other users' data is invisible at the database level.
+- Supabase encrypts data at rest and in transit.
 
-### Vercel (also free, also easy)
-
-1. Push the folder to a GitHub repo (same steps 1–2 as above).
-2. Go to **vercel.com**, click **Add New → Project**.
-3. Import the GitHub repo.
-4. **Framework Preset:** "Other"
-5. **Build Command:** leave empty
-6. **Output Directory:** leave empty
-7. Click **Deploy**. Done.
-
-### Netlify (drag-and-drop, no GitHub needed)
-
-1. Go to **app.netlify.com/drop**.
-2. Drag this entire `ledger` folder onto the page.
-3. Done. Netlify gives you a URL.
+### Cost
+- Supabase free tier: 500MB database + 50,000 monthly active users. You won't hit either.
 
 ---
 
-## How to use it
+## Troubleshooting
 
-1. Open the app. You'll see a sign-in screen with two role cards.
-2. Pick **Owner**, optionally type a display name, click **Continue**.
-3. App opens with no data — that's intentional.
-4. Click **Settings → Cash accounts** and add at least one account (bank, wallet, cash — whatever).
-5. Click **Add transaction** in the topbar and log your first expense or income.
-6. Everything else fills in automatically: Overview, Cash Checker, Health, Reports.
+**"Sign in screen never appears"**
+You haven't filled in `supabase-config.js`. Or you have a typo. Open browser DevTools → Console; if you see "Supabase not configured," fix the config file.
 
-**Recommended order to populate the app:**
+**"Email not arriving"**
+- Check spam folder.
+- In Supabase dashboard → Authentication → URL Configuration → verify your Site URL matches where you're running the app.
+- For local testing, set Site URL to `http://localhost:8080` (or whatever port).
+
+**"Invalid login credentials"**
+- Make sure you created an account first (Sign Up tab, not Sign In).
+- If you signed up with email confirmation on, check your inbox for the confirmation email and click the link.
+
+**"My data isn't syncing"**
+- Open DevTools → Console. Look for `Supabase fetch error` or `Supabase push error`.
+- Most common cause: forgot to run `supabase-schema.sql` in step 2.
+- Second most common: anon key copied with whitespace. Re-paste cleanly.
+
+**Want to wipe everything**
+- Supabase dashboard → Table Editor → user_data → delete your row, OR
+- Settings → Data → Reset everything (only wipes local state)
+
+---
+
+## How to use the app
+
+1. Sign in (or open offline mode).
+2. **Settings → Cash accounts** → add at least one account (bank, wallet, cash).
+3. Click **Add transaction** in the topbar → log your first expense or income.
+4. Everything else populates automatically: Overview, Cash Checker, Health, Reports.
+
+**Recommended order to populate:**
 1. Cash accounts (Settings)
-2. Categories — already pre-populated, edit if you want (Settings)
+2. Categories — pre-populated, edit if you want (Settings)
 3. Debts (Debt screen)
 4. Credit accounts (Credit screen)
 5. Recurring rules for monthly bills (Recurring screen)
 6. Budgets (Budgets screen)
 7. Savings goals (Goals screen)
 8. Expected income for forecasting (Forecast screen)
-
----
-
-## Backing up your data
-
-**Your data lives only in your browser.** Clearing browser data deletes it.
-
-To back up:
-- **Settings → Data → "Backup all data (JSON)"** — downloads a `.json` file. Keep this somewhere safe.
-- To restore on another computer, open the app there, sign in, then **Settings → Data → "Restore from backup (JSON)"** and pick the file.
-
-Do this monthly, or before clearing browser cache.
-
----
-
-## Two users (Owner + Assistant)
-
-This version has role gating built in:
-- **Owner** — all 16 screens, full access.
-- **Assistant** — only Transactions, Expenses, Income, Calendar, Recurring, Settings.
-
-**Honest limitation:** because this is a static site (no server), both roles share the same browser-local data on the same computer. If your assistant is on a different device, you need a backend.
-
-To get true separate-device sync, the next step is wiring **Supabase** — the store layer was designed for this swap. See `README.md` for the technical notes.
-
----
-
-## If something breaks
-
-1. Open the browser DevTools (right-click → Inspect → Console tab).
-2. Note any red error messages.
-3. The most common cause is a missing file. **Make sure all 18 files are in the same folder.**
-
----
-
-## What you cannot do (yet)
-
-- ❌ Cross-device sync without a backend
-- ❌ Real PDF export (the "Print / Save as PDF" button uses your browser's print dialog)
-- ❌ Live FX-rate fetch (you type the USD↔PHP rate manually in Forecast)
-- ❌ Real password-protected login (it's role selection, not auth)
-
-All of these are addressable when you're ready. The architecture was built so they swap in cleanly. Read `README.md` → "Recommended next steps when you go production."

@@ -107,7 +107,9 @@ const ROLE_PERMS = {
 // ============================================================================
 function Sidebar({
   active,
-  setActive
+  setActive,
+  cloudEnabled,
+  session
 }) {
   const {
     state,
@@ -343,7 +345,15 @@ function Sidebar({
       textTransform: "uppercase",
       letterSpacing: "0.08em"
     }
-  }, role === "owner" ? "Admin · full" : "Limited · log only")))));
+  }, role === "owner" ? "Admin · full" : "Limited · log only")),
+    cloudEnabled && session && /*#__PURE__*/React.createElement(IconBtn, {
+      icon: ICONS.lock,
+      title: "Sign out",
+      onClick: async () => {
+        try { await window.sbSignOut(); } catch (e) { console.warn(e); }
+      },
+    })
+  )));
 }
 
 // ============================================================================
