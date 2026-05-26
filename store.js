@@ -398,6 +398,32 @@ function StoreProvider({ children }) {
     }
   }, [state.debts.length, state.debts.filter(d => d.status === "active").length]); // eslint-disable-line
 
+  // Auto-generate monthly planned expenses for credit minimum payments (due 1st of month)
+  React.useEffect(() => {
+    const today = new Date();
+    const thisMonthStr = dateISO(today).slice(0, 7);
+    for (const credit of state.creditAccounts) {
+      if (!credit.balance || credit.balance <= 0) continue; // skip if no balance
+      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+        pe.creditId === credit.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
+      );
+      if (alreadyPlanned) continue;
+      // Due on the credit account's dueDay or 1st by default
+      const dueDay = credit.dueDay || 1;
+      const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), dueDay));
+      const minPay = credit.minPayment || Math.max(500, Math.round((credit.balance || 0) * 0.05));
+      dispatch({ type: "ADD_PLANNED_EXPENSE", payload: {
+        particular: "Min pay · " + credit.name,
+        amount: minPay,
+        dueDate,
+        categoryId: (state.categories.find(c => c.id === "cat-debt") || {}).id || null,
+        creditId: credit.id,
+        note: "Auto-generated credit minimum payment for " + credit.name + ".",
+        status: "pending"
+      }});
+    }
+  }, [state.creditAccounts.length, state.creditAccounts.map(c => c.balance).join(",")]); // eslint-disable-line
+
   return React.createElement(StoreContext.Provider, { value: { state, actions, computed } }, children);
 }
 
