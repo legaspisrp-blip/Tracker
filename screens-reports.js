@@ -849,11 +849,13 @@ function HealthSummary() {
 // ---------------------------------------------------------------------------
 function ExpectedActualReport() {
   const { state } = useStore();
+  const fxRate = state.settings.fxRate || 58.42;
+  const toPHP = (amount, currency) => currency === "USD" ? (amount || 0) * fxRate : (amount || 0);
   const incomes = state.expectedIncome || [];
   const expenses = state.plannedExpenses || [];
 
-  const expIncome = incomes.reduce((s, e) => s + (e.amount || 0), 0);
-  const actIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
+  const expIncome = incomes.reduce((s, e) => s + toPHP(e.amount, e.currency), 0);
+  const actIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + toPHP(e.actualAmount || e.amount, e.currency), 0);
   const expExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const actExpense = expenses.filter(e => e.status === "completed").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
   const expNet = expIncome - expExpense;
@@ -908,9 +910,28 @@ function ExpectedActualReport() {
         ),
         /*#__PURE__*/React.createElement("tbody", null,
           incomes.map(e => /*#__PURE__*/React.createElement("tr", { key: e.id, style: { borderTop: "1px solid var(--border)" } },
-            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", weight: 500 }) }, e.source),
-            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true }) }, fmtMoney(e.amount, { dec: 2 })),
-            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true, color: "var(--up)" }) }, e.status === "received" ? fmtMoney(e.actualAmount || e.amount, { dec: 2 }) : "—"),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", weight: 500 }) },
+              e.source,
+              e.currency === "USD" && /*#__PURE__*/React.createElement(Chip, { tone: "muted", style: { marginLeft: 6 } }, "USD")
+            ),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true }) },
+              e.currency === "USD"
+                ? /*#__PURE__*/React.createElement("div", null,
+                    /*#__PURE__*/React.createElement("div", null, "$" + Number(e.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+                    /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: "var(--muted)" } }, fmtMoney(toPHP(e.amount, e.currency), { dec: 2 }))
+                  )
+                : fmtMoney(e.amount, { dec: 2 })
+            ),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true, color: "var(--up)" }) },
+              e.status === "received"
+                ? (e.currency === "USD"
+                    ? /*#__PURE__*/React.createElement("div", null,
+                        /*#__PURE__*/React.createElement("div", null, "$" + Number(e.actualAmount || e.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+                        /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: "var(--muted)" } }, fmtMoney(toPHP(e.actualAmount || e.amount, e.currency), { dec: 2 }))
+                      )
+                    : fmtMoney(e.actualAmount || e.amount, { dec: 2 }))
+                : "—"
+            ),
             /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px" }) }, /*#__PURE__*/React.createElement(Chip, { tone: e.status === "received" ? "up" : "muted" }, e.status || "pending"))
           ))
         )
