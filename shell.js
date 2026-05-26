@@ -353,9 +353,14 @@ function Sidebar({
       letterSpacing: "0.08em"
     }
   }, role === "owner" ? "Admin · full" : "Limited · log only")),
-    cloudEnabled && session && /*#__PURE__*/React.createElement("button", {
+    cloudEnabled && /*#__PURE__*/React.createElement("button", {
       onClick: async () => {
-        try { await window.sbSignOut(); } catch (e) { console.warn(e); }
+        try {
+          if (window.sbSignOut) await window.sbSignOut();
+        } catch (e) { console.warn(e); }
+        // Clear local session and reload to show login screen
+        try { localStorage.removeItem("sb-rrrzwidshbmkjotylvjr-auth-token"); } catch(e) {}
+        window.location.reload();
       },
       title: "Sign out",
       style: {
