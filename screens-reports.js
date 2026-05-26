@@ -158,15 +158,15 @@ function ReportScreen({ userRole, session }) {
     }
   }, [{
     id: "income-statement",
-    label: "1 · Income Statement",
+    label: "Income Statement",
     sub: "Inflows − Outflows"
   }, {
     id: "ledger",
-    label: "2 · Personal Ledger",
+    label: "Personal Ledger",
     sub: "Every transaction"
   }, {
     id: "cash-flow",
-    label: "3 · Cash Flow Report",
+    label: "Cash Flow Report",
     sub: "Opening → closing"
   }, {
     id: "expected-actual",
@@ -174,7 +174,7 @@ function ReportScreen({ userRole, session }) {
     sub: "Forecast accuracy"
   }, {
     id: "summary",
-    label: "4 · Health Summary",
+    label: "Health Summary",
     sub: "Score + advice"
   }].map(t => /*#__PURE__*/React.createElement("button", {
     key: t.id,
