@@ -1,12 +1,10 @@
 // ============================================================================
 // store.js — Single source of truth. Context + reducer + localStorage + Supabase.
-// KEY CHANGE: All devices share ONE Supabase row keyed by SUPABASE_ROW_ID.
 // This means any browser/device will see the same data automatically.
 // ============================================================================
 
 const LS_KEY = "ledger:state:v2";
 const APP_VERSION = "0.9.0";
-const SUPABASE_ROW_ID = "ledger-main"; // ONE shared row for all devices
 
 const EMPTY_STATE = {
   version: APP_VERSION,
@@ -33,6 +31,7 @@ const EMPTY_STATE = {
   ],
   cashAccounts: [], transactions: [], debts: [], creditAccounts: [],
   budgets: [], goals: [], recurring: [], expectedIncome: [],
+  plannedExpenses: [],
   notifications: [], lastBackup: null
 };
 
@@ -100,6 +99,39 @@ function reducer(state, action) {
     case "ADD_EXPECTED": return { ...state, expectedIncome: [...state.expectedIncome, { id: uid("exp"), confidence: "medium", ...action.payload }] };
     case "UPDATE_EXPECTED": return { ...state, expectedIncome: state.expectedIncome.map(e => e.id === action.id ? { ...e, ...action.patch } : e) };
     case "DELETE_EXPECTED": return { ...state, expectedIncome: state.expectedIncome.filter(e => e.id !== action.id) };
+    // ---- PLANNED EXPENSES ----
+    case "ADD_PLANNED_EXPENSE": return { ...state, plannedExpenses: [...state.plannedExpenses, { id: uid("pexp"), status: "pending", createdAt: Date.now(), ...action.payload }] };
+    case "UPDATE_PLANNED_EXPENSE": return { ...state, plannedExpenses: state.plannedExpenses.map(e => e.id === action.id ? { ...e, ...action.patch } : e) };
+    case "DELETE_PLANNED_EXPENSE": return { ...state, plannedExpenses: state.plannedExpenses.filter(e => e.id !== action.id) };
+    // Complete a planned expense: mark as done + create actual transaction
+    case "COMPLETE_PLANNED_EXPENSE": {
+      const pe = state.plannedExpenses.find(e => e.id === action.id);
+      if (!pe) return state;
+      const tx = { id: uid("tx"), createdAt: Date.now(), logger: "system",
+        date: action.date || dateISO(new Date()), particular: pe.particular,
+        amount: action.amount || pe.amount, kind: "expense",
+        categoryId: pe.categoryId, accountId: action.accountId || pe.accountId || null,
+        note: "Completed from planned expense.", plannedExpenseId: pe.id };
+      const accs = applyTxToAccounts(state.cashAccounts, tx, "apply");
+      return { ...state,
+        plannedExpenses: state.plannedExpenses.map(e => e.id === action.id ? { ...e, status: "completed", completedAt: Date.now(), actualAmount: tx.amount } : e),
+        transactions: [...state.transactions, tx], cashAccounts: accs };
+    }
+    // Realize expected income: mark as received + create actual transaction
+    case "REALIZE_INCOME": {
+      const ei = state.expectedIncome.find(e => e.id === action.id);
+      if (!ei) return state;
+      const tx = { id: uid("tx"), createdAt: Date.now(), logger: "system",
+        date: action.date || dateISO(new Date()), particular: ei.source,
+        amount: action.amount || ei.amount, kind: "income",
+        categoryId: state.categories.find(c => c.id === "cat-salary")?.id || null,
+        accountId: action.accountId || null,
+        note: "Realized from expected income.", expectedIncomeId: ei.id };
+      const accs = applyTxToAccounts(state.cashAccounts, tx, "apply");
+      return { ...state,
+        expectedIncome: state.expectedIncome.map(e => e.id === action.id ? { ...e, status: "received", receivedAt: Date.now(), actualAmount: tx.amount } : e),
+        transactions: [...state.transactions, tx], cashAccounts: accs };
+    }
     case "IMPORT_STATE": {
       const p = action.payload || {};
       return { ...EMPTY_STATE, ...p, session: { role: "owner", name: (p.session && p.session.name) || "" } };
@@ -242,21 +274,6 @@ function computeHealth({ monthIncome, monthExpense, monthlyDebtObligation, cashO
   return { composite, rating, dti, reserveMonths, savingsRate, creditUtilization, dtiScore, savingsScore, reserveScore, utilScore };
 }
 
-// ---------------------------------------------------------------------------
-// SUPABASE helper
-// ---------------------------------------------------------------------------
-function getSupabaseClient() {
-  try {
-    const url = window.SUPABASE_URL;
-    const key = window.SUPABASE_ANON_KEY;
-    if (!url || !key || url.includes("your-project") || key.includes("your-anon")) return null;
-    return window.supabase.createClient(url, key);
-  } catch (e) { return null; }
-}
-
-// ---------------------------------------------------------------------------
-// CONTEXT + PROVIDER + HOOK
-// ---------------------------------------------------------------------------
 const StoreContext = React.createContext(null);
 
 function loadInitial() {
@@ -273,8 +290,6 @@ function loadInitial() {
 
 function StoreProvider({ children }) {
   const [state, dispatch] = React.useReducer(reducer, undefined, loadInitial);
-  const sbRef = React.useRef(getSupabaseClient());
-  const saveTimer = React.useRef(null);
 
   // Save to localStorage on every state change
   React.useEffect(() => {
@@ -282,38 +297,7 @@ function StoreProvider({ children }) {
     catch (e) { console.warn("Ledger: localStorage save failed", e); }
   }, [state]);
 
-  // On mount: load latest data from Supabase shared row
-  React.useEffect(() => {
-    const sb = sbRef.current;
-    if (!sb) return;
-    sb.from("user_data")
-      .select("data")
-      .eq("user_id", SUPABASE_ROW_ID)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) { console.warn("Ledger: Supabase load failed", error); return; }
-        if (!data || !data.data) { console.log("Ledger: no cloud data yet"); return; }
-        const cloudData = { ...data.data };
-        delete cloudData.session;
-        dispatch({ type: "IMPORT_STATE", payload: cloudData });
-        console.log("Ledger: loaded from Supabase \u2713", (cloudData.cashAccounts || []).length, "accounts");
-      });
-  }, []); // eslint-disable-line
 
-  // Save to Supabase on every state change (debounced 1.5s)
-  React.useEffect(() => {
-    const sb = sbRef.current;
-    if (!sb) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      sb.from("user_data")
-        .upsert({ user_id: SUPABASE_ROW_ID, data: state, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
-        .then(({ error }) => {
-          if (error) console.warn("Ledger: Supabase save failed", error);
-        });
-    }, 1500);
-    return () => clearTimeout(saveTimer.current);
-  }, [state]);
 
   const actions = React.useMemo(() => ({
     login: (role, name) => dispatch({ type: "LOGIN", role, name }),
@@ -348,6 +332,12 @@ function StoreProvider({ children }) {
     addExpected: p => dispatch({ type: "ADD_EXPECTED", payload: p }),
     updateExpected: (id, patch) => dispatch({ type: "UPDATE_EXPECTED", id, patch }),
     deleteExpected: id => dispatch({ type: "DELETE_EXPECTED", id }),
+    // planned expenses
+    addPlannedExpense: p => dispatch({ type: "ADD_PLANNED_EXPENSE", payload: p }),
+    updatePlannedExpense: (id, patch) => dispatch({ type: "UPDATE_PLANNED_EXPENSE", id, patch }),
+    deletePlannedExpense: id => dispatch({ type: "DELETE_PLANNED_EXPENSE", id }),
+    completePlannedExpense: (id, date, amount, accountId) => dispatch({ type: "COMPLETE_PLANNED_EXPENSE", id, date, amount, accountId }),
+    realizeIncome: (id, date, amount, accountId) => dispatch({ type: "REALIZE_INCOME", id, date, amount, accountId }),
     importState: payload => dispatch({ type: "IMPORT_STATE", payload }),
     resetAll: () => dispatch({ type: "RESET_ALL" }),
     backupNow: () => dispatch({ type: "BACKUP_NOW" })
