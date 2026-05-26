@@ -48,9 +48,12 @@ function RealizeIncomeModal({ item, onClose }) {
           ]
         })
       ),
+      isUSD && React.createElement("div", {
+        style: { fontSize: 11, color: "var(--muted)", padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)" }
+      }, "USD amount: $", Number(item.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 }), " → ", fmtMoney(item.amount * fxRate, { dec: 2 }), " at rate ", fxRate),
       +amount !== item.amount && React.createElement("div", {
         style: { fontSize: 11, color: "var(--warn)", padding: "6px 10px", border: "1px solid var(--warn)", borderRadius: "var(--radius)" }
-      }, "Variance: ", fmtMoney(+amount - item.amount, { dec: 2 }), " from expected ", fmtMoney(item.amount, { dec: 2 }))
+      }, "Variance: ", isUSD ? ("$" + Math.abs(+amount - item.amount).toFixed(2)) : fmtMoney(+amount - item.amount, { dec: 2 }), " from expected")
     )
   );
 }
@@ -245,6 +248,8 @@ function statusChip(status, dueDate) {
 // ---------------------------------------------------------------------------
 function ExpectedScreen() {
   const { state } = useStore();
+  const fxRate = state.settings.fxRate || 58.42;
+  const toPHP = (amount, currency) => currency === "USD" ? amount * fxRate : (amount || 0);
   const [tab, setTab] = useState("income");
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -256,8 +261,8 @@ function ExpectedScreen() {
   const incomes = state.expectedIncome || [];
   const expenses = state.plannedExpenses || [];
 
-  const totalExpIncome = incomes.filter(e => e.status !== "received").reduce((s, e) => s + (e.amount || 0), 0);
-  const totalActIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
+  const totalExpIncome = incomes.filter(e => e.status !== "received").reduce((s, e) => s + toPHP(e.amount, e.currency), 0);
+  const totalActIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + toPHP(e.actualAmount || e.amount, e.currency), 0);
   const totalExpExpense = expenses.filter(e => e.status !== "completed").reduce((s, e) => s + (e.amount || 0), 0);
   const totalActExpense = expenses.filter(e => e.status === "completed").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
 
@@ -324,7 +329,14 @@ function ExpectedScreen() {
                     React.createElement("td", { style: cellStyle({ pad: "10px 14px" }) },
                       React.createElement(Chip, { tone: e.confidence === "high" ? "up" : e.confidence === "low" ? "down" : "muted" }, e.confidence)
                     ),
-                    React.createElement("td", { style: cellStyle({ pad: "10px 14px", align: "right", mono: true }) }, fmtMoney(e.amount, { dec: 2 })),
+                    React.createElement("td", { style: cellStyle({ pad: "10px 14px", align: "right", mono: true }) },
+                    e.currency === "USD"
+                      ? React.createElement("div", null,
+                          React.createElement("div", null, "$" + Number(e.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+                          React.createElement("div", { style: { fontSize: 10, color: "var(--muted)" } }, fmtMoney(toPHP(e.amount, e.currency), { dec: 2 }))
+                        )
+                      : fmtMoney(e.amount, { dec: 2 })
+                  ),
                     React.createElement("td", { style: cellStyle({ pad: "10px 14px", align: "right", mono: true, color: "var(--up)" }) }, e.status === "received" ? fmtMoney(actual, { dec: 2 }) : "\u2014"),
                     React.createElement("td", { style: cellStyle({ pad: "10px 14px", align: "right", mono: true, color: variance !== null ? (variance >= 0 ? "var(--up)" : "var(--down)") : "var(--faint)" }) },
                       variance !== null ? (variance >= 0 ? "+" : "") + fmtMoney(variance, { dec: 2 }) : "\u2014"
@@ -364,7 +376,11 @@ function ExpectedScreen() {
                   const actual = e.actualAmount || 0;
                   const variance = e.status === "completed" ? actual - e.amount : null;
                   return React.createElement("tr", { key: e.id, style: { borderTop: "1px solid var(--border)", opacity: e.status === "completed" ? 0.6 : 1 } },
-                    React.createElement("td", { style: cellStyle({ pad: "10px 14px", weight: 500 }) }, e.particular),
+                    React.createElement("td", { style: cellStyle({ pad: "10px 14px", weight: 500 }) },
+                    e.particular,
+                    e.recurringId && React.createElement(Chip, { tone: "muted", style: { marginLeft: 6 } }, "recurring"),
+                    e.debtId && React.createElement(Chip, { tone: "down", style: { marginLeft: 6 } }, "debt")
+                  ),
                     React.createElement("td", { style: cellStyle({ pad: "10px 14px", mono: true, color: "var(--muted)" }) }, fmtDate(e.dueDate)),
                     React.createElement("td", { style: cellStyle({ pad: "10px 14px" }) },
                       cat ? React.createElement(Chip, null, React.createElement("span", { style: { width: 6, height: 6, background: cat.color, display: "inline-block", marginRight: 4 } }), cat.name)
