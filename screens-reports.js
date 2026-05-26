@@ -2,12 +2,88 @@
 // screens-reports.jsx — 4 tabbed reports + CSV export + print
 // ============================================================================
 
-function ReportScreen() {
+function ReportScreen({ userRole, session }) {
   const {
     state,
     computed
   } = useStore();
+  const toast = useToast();
   const [tab, setTab] = useState("income-statement");
+  const [sending, setSending] = useState(false);
+
+  const isAssistant = userRole === "assistant";
+
+  const sendReportByEmail = async () => {
+    if (!window.EMAILJS_SERVICE_ID || window.EMAILJS_SERVICE_ID === "your_service_id") {
+      toast("EmailJS not configured. Fill in emailjs-config.js first.", "error");
+      return;
+    }
+    setSending(true);
+    try {
+      const ownerEmail = window.OWNER_EMAIL || "";
+      const assistantName = session?.user?.email || "Assistant";
+      const now = new Date();
+      const monthName = now.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+      const income = state.transactions.filter(t => t.kind === "income").reduce((s, t) => s + t.amount, 0);
+      const expenses = state.transactions.filter(t => t.kind === "expense").reduce((s, t) => s + t.amount, 0);
+      const pending = (state.plannedExpenses || []).filter(e => e.status !== "completed").length;
+      const reportContent = [
+        "LEDGER REPORT - " + monthName,
+        "==================================",
+        "Transactions logged: " + state.transactions.length,
+        "Total income: PHP " + income.toLocaleString("en-PH", { minimumFractionDigits: 2 }),
+        "Total expenses: PHP " + expenses.toLocaleString("en-PH", { minimumFractionDigits: 2 }),
+        "Net: PHP " + (income - expenses).toLocaleString("en-PH", { minimumFractionDigits: 2 }),
+        "Pending planned expenses: " + pending,
+        "",
+        "Recent transactions:",
+        ...state.transactions.slice(-5).reverse().map(t =>
+          (t.date || "") + " - " + t.particular + " - PHP " + (t.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })
+        )
+      ].join("\n");
+
+      await emailjs.send(
+        window.EMAILJS_SERVICE_ID,
+        window.EMAILJS_TEMPLATE_ID,
+        {
+          owner_email: ownerEmail,
+          owner_name: "Owner",
+          assistant_name: assistantName,
+          report_content: reportContent,
+          date: now.toLocaleDateString("en-PH", { dateStyle: "full" })
+        },
+        window.EMAILJS_PUBLIC_KEY
+      );
+      toast("Report sent to owner successfully.", "success");
+    } catch (err) {
+      console.error(err);
+      toast("Failed to send email. Check EmailJS config.", "error");
+    }
+    setSending(false);
+  };
+  if (isAssistant) {
+    return /*#__PURE__*/React.createElement("div", { style: { padding: 14, display: "flex", flexDirection: "column", gap: 12 } },
+      /*#__PURE__*/React.createElement(Panel, { title: "Send report to owner" },
+        /*#__PURE__*/React.createElement("div", { style: { padding: 24, display: "flex", flexDirection: "column", gap: 16, alignItems: "center", textAlign: "center" } },
+          /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: "var(--muted)", maxWidth: 400, lineHeight: 1.6 } },
+            "Click the button below to send a summary report of all logged transactions to the owner."
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, color: "var(--faint)" } },
+            state.transactions.length, " transactions · ",
+            (state.plannedExpenses || []).filter(e => e.status !== "completed").length, " pending planned expenses"
+          ),
+          /*#__PURE__*/React.createElement(Button, {
+            variant: "primary",
+            size: "lg",
+            disabled: sending,
+            onClick: sendReportByEmail,
+            style: { padding: "12px 24px" }
+          }, sending ? "Sending…" : "Send report to owner")
+        )
+      )
+    );
+  }
+
   if (computed.isEmpty) {
     return /*#__PURE__*/React.createElement("div", {
       style: {
