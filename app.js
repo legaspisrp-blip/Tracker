@@ -67,7 +67,7 @@ function App() {
   },
     // Cloud sync — mounts only when Supabase is enabled and user is signed in
     isSupabaseEnabled() && session && React.createElement(CloudSync, { session, setSession }),
-    React.createElement(Sidebar, { active, setActive }),
+    React.createElement(Sidebar, { active, setActive, cloudEnabled: isSupabaseEnabled(), session, setSession }),
     React.createElement("main", {
       style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }
     },
