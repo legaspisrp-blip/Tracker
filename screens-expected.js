@@ -266,8 +266,22 @@ function ExpectedScreen() {
   const [realizeItem, setRealizeItem] = useState(null);
   const [completeItem, setCompleteItem] = useState(null);
 
-  const incomes = state.expectedIncome || [];
-  const expenses = state.plannedExpenses || [];
+  const incomes = [...(state.expectedIncome || [])].sort((a, b) => {
+    if (a.status === "received" && b.status !== "received") return 1;
+    if (b.status === "received" && a.status !== "received") return -1;
+    const da = a.expectedDate || "9999";
+    const db = b.expectedDate || "9999";
+    return da.localeCompare(db);
+  });
+  const expenses = [...(state.plannedExpenses || [])].sort((a, b) => {
+    // Completed go to bottom
+    if (a.status === "completed" && b.status !== "completed") return 1;
+    if (b.status === "completed" && a.status !== "completed") return -1;
+    // Sort by due date ascending (nearest first)
+    const da = a.dueDate || "9999";
+    const db = b.dueDate || "9999";
+    return da.localeCompare(db);
+  });
 
   const totalExpIncome = incomes.filter(e => e.status !== "received").reduce((s, e) => s + toPHP(e.amount, e.currency), 0);
   const totalActIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + toPHP(e.actualAmount || e.amount, e.currency), 0);
