@@ -78,6 +78,11 @@ const NAV = [{
   group: "plan",
   icon: "report"
 }, {
+  id: "expected",
+  label: "Expected vs Actual",
+  group: "plan",
+  icon: "forecast"
+}, {
   id: "settings",
   label: "Settings",
   group: "system",
