@@ -102,7 +102,7 @@ const ROLE_PERMS = {
   },
   assistant: {
     // Limited: log + view what's needed to log
-    canSee: ["transactions", "expenses", "income", "calendar", "subscriptions", "settings"],
+    canSee: ["transactions", "expenses", "income", "calendar", "subscriptions", "expected", "report", "settings"],
     canEdit: true
   }
 };
@@ -122,7 +122,7 @@ function Sidebar({
     actions,
     computed
   } = useStore();
-  const role = state.session.role;
+  const role = userRole === "assistant" ? "assistant" : "owner";
   const perms = ROLE_PERMS[role] || ROLE_PERMS.owner;
   const visible = NAV.filter(n => perms.canSee.includes(n.id));
   const groups = [...new Set(visible.map(v => v.group))];
