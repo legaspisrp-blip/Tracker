@@ -111,11 +111,14 @@ function reducer(state, action) {
         date: action.date || dateISO(new Date()), particular: pe.particular,
         amount: action.amount || pe.amount, kind: "expense",
         categoryId: pe.categoryId, accountId: action.accountId || pe.accountId || null,
+        debtId: pe.debtId || null,
         note: "Completed from planned expense.", plannedExpenseId: pe.id };
       const accs = applyTxToAccounts(state.cashAccounts, tx, "apply");
+      let debts = state.debts;
+      if (pe.debtId) debts = recordDebtTxOnDebts(state.debts, tx, "apply");
       return { ...state,
         plannedExpenses: state.plannedExpenses.map(e => e.id === action.id ? { ...e, status: "completed", completedAt: Date.now(), actualAmount: tx.amount } : e),
-        transactions: [...state.transactions, tx], cashAccounts: accs };
+        transactions: [...state.transactions, tx], cashAccounts: accs, debts };
     }
     // Realize expected income: mark as received + create actual transaction
     case "REALIZE_INCOME": {
@@ -233,10 +236,10 @@ function computeStats(state, options) {
   };
 }
 function sumKind(txs, kind) { return txs.filter(t => t.kind === kind).reduce((s, t) => s + t.amount, 0); }
-function sameMonth(dateStr, y, m) { const d = new Date(dateStr); return d.getFullYear() === y && d.getMonth() === m; }
+function sameMonth(dateStr, y, m) { if (!dateStr) return false; const p = dateStr.split("-"); return Number(p[0]) === y && Number(p[1]) - 1 === m; }
 function lastMonth(m) { return m === 0 ? 11 : m - 1; }
 function lastMonthYear(y, m) { return m === 0 ? y - 1 : y; }
-function dateISO(d) { return d.toISOString().slice(0, 10); }
+function dateISO(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function buildUpcoming(state, now) {
   const items = [];
   const today = new Date(now);
@@ -345,20 +348,55 @@ function StoreProvider({ children }) {
 
   const computed = React.useMemo(() => computeStats(state), [state]);
 
-  // Auto-generate recurring transactions
+  // Auto-generate planned expenses from recurring rules (not actual transactions)
   React.useEffect(() => {
     const today = new Date();
+    const thisMonthStr = dateISO(today).slice(0, 7);
     for (const r of state.recurring) {
       if (r.frequency !== "monthly") continue;
       const lg = r.lastGenerated ? new Date(r.lastGenerated) : null;
       const alreadyThisMonth = lg && lg.getFullYear() === today.getFullYear() && lg.getMonth() === today.getMonth();
       if (alreadyThisMonth) continue;
       if (today.getDate() < (r.dueDay || 1)) continue;
-      const txDate = new Date(today.getFullYear(), today.getMonth(), r.dueDay);
-      dispatch({ type: "ADD_TRANSACTION", payload: { date: dateISO(txDate), particular: r.particular, amount: r.amount, kind: r.kind || "expense", categoryId: r.categoryId, accountId: r.accountId, note: `Auto-generated from "${r.particular}" recurring rule.`, recurringId: r.id } });
+      // Skip if planned expense already exists for this rule this month
+      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+        pe.recurringId === r.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
+      );
+      if (!alreadyPlanned) {
+        const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), r.dueDay));
+        dispatch({ type: "ADD_PLANNED_EXPENSE", payload: {
+          particular: r.particular, amount: r.amount, dueDate,
+          categoryId: r.categoryId, accountId: r.accountId,
+          note: 'Auto-generated from "' + r.particular + '" recurring rule.',
+          recurringId: r.id, status: "pending"
+        }});
+      }
       dispatch({ type: "TOUCH_RECURRING", id: r.id, date: dateISO(today) });
     }
   }, [state.recurring.length]); // eslint-disable-line
+
+  // Auto-generate monthly planned expenses for active debts
+  React.useEffect(() => {
+    const today = new Date();
+    const thisMonthStr = dateISO(today).slice(0, 7);
+    for (const debt of state.debts) {
+      if (debt.status !== "active") continue;
+      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+        pe.debtId === debt.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
+      );
+      if (alreadyPlanned) continue;
+      const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), debt.dueDay || 1));
+      dispatch({ type: "ADD_PLANNED_EXPENSE", payload: {
+        particular: "Payment · " + debt.name,
+        amount: debt.monthlyPayment,
+        dueDate,
+        categoryId: (state.categories.find(c => c.id === "cat-debt") || {}).id || null,
+        debtId: debt.id,
+        note: "Auto-generated debt payment for " + debt.name + ".",
+        status: "pending"
+      }});
+    }
+  }, [state.debts.length, state.debts.filter(d => d.status === "active").length]); // eslint-disable-line
 
   return React.createElement(StoreContext.Provider, { value: { state, actions, computed } }, children);
 }
@@ -393,7 +431,8 @@ function fmtPct(n, dec) {
 function fmtDate(iso, opts) {
   opts = opts || {};
   if (!iso) return "\u2014";
-  const d = new Date(iso);
+  const p = iso.split("-");
+  const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
   return d.toLocaleDateString("en-PH", { month: opts.month || "short", day: "numeric", year: opts.year ? "numeric" : undefined });
 }
 function todayISO() { return dateISO(new Date()); }
