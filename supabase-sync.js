@@ -88,9 +88,33 @@
     return { data, error };
   }
 
+  async function sbGetUserRole(email) {
+    const c = initSupabase(); if (!c) return "owner";
+    const { data, error } = await c.from("user_roles").select("role").eq("email", email).maybeSingle();
+    if (error || !data) return "owner"; // default to owner if no role set
+    return data.role;
+  }
+
+  async function sbAddUserRole(email, role, addedBy) {
+    const c = initSupabase(); if (!c) return { error: { message: "no client" } };
+    return await c.from("user_roles").upsert({ email, role, added_by: addedBy }, { onConflict: "email" });
+  }
+
+  async function sbRemoveUserRole(email) {
+    const c = initSupabase(); if (!c) return { error: { message: "no client" } };
+    return await c.from("user_roles").delete().eq("email", email);
+  }
+
+  async function sbListUserRoles() {
+    const c = initSupabase(); if (!c) return [];
+    const { data } = await c.from("user_roles").select("*").order("created_at");
+    return data || [];
+  }
+
   Object.assign(window, {
     isSupabaseEnabled, initSupabase,
     sbSignUp, sbSignIn, sbSignInWithMagicLink, sbSignOut,
     sbGetSession, sbOnAuthChange, sbFetchData, sbPushData,
+    sbGetUserRole, sbAddUserRole, sbRemoveUserRole, sbListUserRoles,
   });
 })();
