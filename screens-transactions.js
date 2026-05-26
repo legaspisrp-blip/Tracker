@@ -112,7 +112,7 @@ function TransactionForm({
     onClose: onClose,
     title: editing ? "Edit transaction" : "Log transaction",
     width: 520,
-    footer: /*#__PURE__*/React.createElement(React.Fragment, null, editing && /*#__PURE__*/React.createElement(Button, {
+    footer: /*#__PURE__*/React.createElement(React.Fragment, null, editing && state.settings.userRole !== "assistant" && /*#__PURE__*/React.createElement(Button, {
       danger: true,
       onClick: onDelete,
       style: {
