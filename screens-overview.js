@@ -842,8 +842,48 @@ function DonutMini({
     }
   }, children));
 }
+
+// ---------------------------------------------------------------------------
+// UpcomingWidget — used on Overview to show pending expected income + expenses
+// ---------------------------------------------------------------------------
+function UpcomingWidget({ setActive }) {
+  const { state } = useStore();
+  const incomes = (state.expectedIncome || []).filter(e => e.status !== "received").slice(0, 5);
+  const expenses = (state.plannedExpenses || []).filter(e => e.status !== "completed").slice(0, 5);
+  if (incomes.length === 0 && expenses.length === 0) return null;
+
+  return /*#__PURE__*/React.createElement(Panel, {
+    title: "Upcoming",
+    action: /*#__PURE__*/React.createElement(Button, { size: "sm", onClick: () => setActive("expected") }, "View all")
+  },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
+      incomes.map(e => /*#__PURE__*/React.createElement("div", {
+        key: e.id,
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: "1px solid var(--border)" }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 2 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 500 } }, e.source),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--muted)" } }, "Expected income · ", fmtDate(e.expectedDate))
+        ),
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "var(--font-num)", fontSize: 13, fontWeight: 600, color: "var(--up)" } }, fmtMoney(e.amount, { dec: 2 }))
+      )),
+      expenses.map(e => /*#__PURE__*/React.createElement("div", {
+        key: e.id,
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: "1px solid var(--border)" }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 2 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 500 } }, e.particular),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--muted)" } }, "Planned expense · due ", fmtDate(e.dueDate))
+        ),
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "var(--font-num)", fontSize: 13, fontWeight: 600, color: "var(--down)" } }, fmtMoney(e.amount, { dec: 2 }))
+      ))
+    )
+  );
+}
+
 Object.assign(window, {
   OverviewScreen,
+  UpcomingWidget,
   CashCheckerScreen,
   DonutMini,
   KPIInline
