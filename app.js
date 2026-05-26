@@ -25,26 +25,47 @@ function App() {
   // Check Supabase auth on mount and fetch role
   useEffect(() => {
     if (!isSupabaseEnabled()) return;
+
+    // Safety timeout — if Supabase hangs, unblock the app after 5 seconds
+    const timeout = setTimeout(() => {
+      console.warn("Ledger: auth check timed out, proceeding without session");
+      setAuthChecked(true);
+    }, 5000);
+
     sbGetSession().then(async s => {
+      clearTimeout(timeout);
       setSession(s);
       if (s && s.user && s.user.email) {
-        const role = await sbGetUserRole(s.user.email);
-        setUserRole(role);
-        actions.setSetting("userRole", role);
+        try {
+          const role = await sbGetUserRole(s.user.email);
+          setUserRole(role);
+          actions.setSetting("userRole", role);
+        } catch(e) {
+          console.warn("Ledger: role fetch failed", e);
+        }
       }
       setAuthChecked(true);
+    }).catch(e => {
+      clearTimeout(timeout);
+      console.warn("Ledger: session check failed", e);
+      setAuthChecked(true);
     });
+
     const unsub = sbOnAuthChange(async s => {
       setSession(s);
       if (s && s.user && s.user.email) {
-        const role = await sbGetUserRole(s.user.email);
-        setUserRole(role);
-        actions.setSetting("userRole", role);
+        try {
+          const role = await sbGetUserRole(s.user.email);
+          setUserRole(role);
+          actions.setSetting("userRole", role);
+        } catch(e) {
+          console.warn("Ledger: role fetch failed", e);
+        }
       } else {
         setUserRole("owner");
       }
     });
-    return unsub;
+    return () => { clearTimeout(timeout); unsub && unsub(); };
   }, []);
 
   // While checking auth — show a simple loading state
