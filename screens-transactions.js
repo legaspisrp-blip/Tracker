@@ -211,25 +211,22 @@ function TransactionForm({
     }))]
   })), /*#__PURE__*/React.createElement(Field, {
     label: "From / to account"
-  }, state.cashAccounts.length ? /*#__PURE__*/React.createElement(Select, {
-    value: form.accountId,
-    onChange: v => setField("accountId", v),
-    options: [{
-      value: "",
-      label: "— None / cash —"
-    }, ...state.cashAccounts.map(a => ({
-      value: a.id,
-      label: `${a.name} · ${fmtMoney(a.balance, {
-        dec: 0
-      })}`
-    }))]
-  }) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      ...inputStyle,
-      color: "var(--muted)",
-      fontStyle: "italic"
-    }
-  }, "No cash accounts yet \xB7 add in Settings"))), form.kind === "expense" && (state.debts.length || state.creditAccounts.length) > 0 && /*#__PURE__*/React.createElement(Field, {
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: form.chargedCreditId ? "CREDIT:" + form.chargedCreditId : (form.accountId || ""),
+    onChange: v => {
+      if (v && v.startsWith("CREDIT:")) {
+        const cId = v.replace("CREDIT:", "");
+        setForm(f => ({ ...f, accountId: null, chargedCreditId: cId }));
+      } else {
+        setForm(f => ({ ...f, accountId: v || null, chargedCreditId: null }));
+      }
+    },
+    options: [
+      { value: "", label: "— None / cash —" },
+      ...state.cashAccounts.map(a => ({ value: a.id, label: a.name + " · " + fmtMoney(a.balance, { dec: 0 }) })),
+      ...(form.kind === "expense" ? state.creditAccounts.map(c => ({ value: "CREDIT:" + c.id, label: "[Credit] " + c.name + " · avail " + fmtMoney((c.limit || 0) - (c.balance || 0), { dec: 0 }) })) : [])
+    ]
+  }))), form.kind === "expense" && (state.debts.length || state.creditAccounts.length) > 0 && /*#__PURE__*/React.createElement(Field, {
     label: "Link to debt or credit (optional)",
     hint: "Linking auto-updates the debt's paidMonths counter or the credit balance."
   }, /*#__PURE__*/React.createElement(Select, {
@@ -310,7 +307,7 @@ function TransactionsTable({
     })
   }))), /*#__PURE__*/React.createElement("tbody", null, rows.map(r => {
     const cat = state.categories.find(c => c.id === r.categoryId);
-    const acct = state.cashAccounts.find(a => a.id === r.accountId) || (r.chargedCreditId ? { name: `💳 ${state.creditAccounts.find(c => c.id === r.chargedCreditId)?.name || "Credit"}` } : null);
+    const acct = state.cashAccounts.find(a => a.id === r.accountId) || (r.chargedCreditId ? { name: "[Credit] " + ((state.creditAccounts.find(c => c.id === r.chargedCreditId) || {}).name || "") } : null);
     const isIn = r.kind === "income";
     return /*#__PURE__*/React.createElement("tr", {
       key: r.id,
