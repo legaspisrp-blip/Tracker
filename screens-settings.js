@@ -629,7 +629,7 @@ function DataSection() {
 
   const onMigrateAuto = () => {
     // Find all AUTO-tagged transactions (recurring OR debt-linked)
-    const autoTxs = state.transactions.filter(t => t.recurringId || t.debtId);
+    const autoTxs = state.transactions.filter(t => t.recurringId || t.debtId || t.creditId);
     if (autoTxs.length === 0) {
       toast("No AUTO transactions found to migrate.", "success");
       setConfirmMigrate(false);
@@ -648,6 +648,7 @@ function DataSection() {
       const alreadyPlanned = existingPlanned.some(pe => {
         if (tx.recurringId && pe.recurringId === tx.recurringId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr) return true;
         if (tx.debtId && pe.debtId === tx.debtId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr) return true;
+        if (tx.creditId && pe.creditId === tx.creditId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr) return true;
         return false;
       });
 
@@ -660,6 +661,7 @@ function DataSection() {
           accountId: tx.accountId || null,
           recurringId: tx.recurringId || null,
           debtId: tx.debtId || null,
+          creditId: tx.creditId || null,
           note: "Migrated from AUTO transaction.",
           status: "pending"
         });
