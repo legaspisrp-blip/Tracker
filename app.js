@@ -1,16 +1,15 @@
 // ============================================================================
-// app.jsx — Root. Routing, theme application, global add-tx modal.
-// Login gate removed — app opens directly as Owner.
+// app.js — Root. Routing, theme, auth gate, cloud sync.
+// Shows AuthScreen when Supabase is enabled and user is not signed in.
+// Falls back to no-login mode when Supabase is not configured.
 // ============================================================================
 
 function App() {
-  const {
-    state,
-    actions,
-    computed
-  } = useStore();
+  const { state, actions, computed } = useStore();
   const [active, setActive] = useState("overview");
   const [showAddTx, setShowAddTx] = useState(false);
+  const [session, setSession] = useState(null);
+  const [authChecked, setAuthChecked] = useState(!isSupabaseEnabled());
 
   // Apply theme as CSS vars on body
   useEffect(() => {
@@ -22,9 +21,42 @@ function App() {
     document.body.style.fontFamily = vars["--font-ui"];
   }, [state.settings.variant, state.settings.mode, state.settings.accent]);
 
+  // Check Supabase auth on mount
+  useEffect(() => {
+    if (!isSupabaseEnabled()) return;
+    sbGetSession().then(s => {
+      setSession(s);
+      setAuthChecked(true);
+    });
+    const unsub = sbOnAuthChange(s => setSession(s));
+    return unsub;
+  }, []);
+
+  // While checking auth — show a simple loading state
+  if (!authChecked) {
+    return React.createElement("div", {
+      style: {
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--bg)",
+        color: "var(--muted)",
+        fontFamily: "var(--font-ui)",
+        fontSize: 13,
+        gap: 10
+      }
+    }, "Loading…");
+  }
+
+  // Supabase is configured but not signed in — show auth screen
+  if (isSupabaseEnabled() && !session) {
+    return React.createElement(AuthScreen, { onSignedIn: () => {} });
+  }
+
   const perms = ROLE_PERMS["owner"];
 
-  return /*#__PURE__*/React.createElement("div", {
+  return React.createElement("div", {
     style: {
       minHeight: "100vh",
       display: "flex",
@@ -32,51 +64,47 @@ function App() {
       color: "var(--text)",
       fontFamily: "var(--font-ui)"
     }
-  }, /*#__PURE__*/React.createElement(Sidebar, {
-    active: active,
-    setActive: setActive
-  }), /*#__PURE__*/React.createElement("main", {
-    style: {
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement(Topbar, {
-    active: active,
-    setActive: setActive,
-    openAddTx: () => setShowAddTx(true)
-  }), /*#__PURE__*/React.createElement(PageHeader, {
-    active: active
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      overflow: "auto"
-    }
-  }, /*#__PURE__*/React.createElement(React.Fragment, null,
-    active === "overview" && /*#__PURE__*/React.createElement(OverviewScreen, { setActive: setActive, openAddTx: () => setShowAddTx(true) }),
-    active === "cash" && /*#__PURE__*/React.createElement(CashCheckerScreen, null),
-    active === "transactions" && /*#__PURE__*/React.createElement(TransactionsScreen, null),
-    active === "expenses" && /*#__PURE__*/React.createElement(ExpensesScreen, null),
-    active === "income" && /*#__PURE__*/React.createElement(IncomeScreen, null),
-    active === "calendar" && /*#__PURE__*/React.createElement(CalendarScreen, null),
-    active === "debt" && /*#__PURE__*/React.createElement(DebtScreen, null),
-    active === "credit" && /*#__PURE__*/React.createElement(CreditScreen, null),
-    active === "health" && /*#__PURE__*/React.createElement(HealthScreen, { setActive: setActive }),
-    active === "forecast" && /*#__PURE__*/React.createElement(ForecastScreen, null),
-    active === "coach" && /*#__PURE__*/React.createElement(MoneyCoachScreen, null),
-    active === "budgets" && /*#__PURE__*/React.createElement(BudgetsScreen, null),
-    active === "goals" && /*#__PURE__*/React.createElement(GoalsScreen, null),
-    active === "subscriptions" && /*#__PURE__*/React.createElement(RecurringScreen, null),
-    active === "report" && /*#__PURE__*/React.createElement(ReportScreen, null),
-    active === "settings" && /*#__PURE__*/React.createElement(SettingsScreen, null)
-  ))), /*#__PURE__*/React.createElement(TransactionForm, {
-    open: showAddTx,
-    onClose: () => setShowAddTx(false)
-  }));
+  },
+    // Cloud sync — mounts only when Supabase is enabled and user is signed in
+    isSupabaseEnabled() && session && React.createElement(CloudSync, { session, setSession }),
+    React.createElement(Sidebar, { active, setActive }),
+    React.createElement("main", {
+      style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }
+    },
+      React.createElement(Topbar, { active, setActive, openAddTx: () => setShowAddTx(true) }),
+      React.createElement(PageHeader, { active }),
+      React.createElement("div", { style: { flex: 1, overflow: "auto" } },
+        React.createElement(React.Fragment, null,
+          active === "overview"       && React.createElement(OverviewScreen,     { setActive, openAddTx: () => setShowAddTx(true) }),
+          active === "cash"           && React.createElement(CashCheckerScreen,  null),
+          active === "transactions"   && React.createElement(TransactionsScreen, null),
+          active === "expenses"       && React.createElement(ExpensesScreen,     null),
+          active === "income"         && React.createElement(IncomeScreen,       null),
+          active === "calendar"       && React.createElement(CalendarScreen,     null),
+          active === "debt"           && React.createElement(DebtScreen,         null),
+          active === "credit"         && React.createElement(CreditScreen,       null),
+          active === "health"         && React.createElement(HealthScreen,       { setActive }),
+          active === "forecast"       && React.createElement(ForecastScreen,     null),
+          active === "coach"          && React.createElement(MoneyCoachScreen,   null),
+          active === "budgets"        && React.createElement(BudgetsScreen,      null),
+          active === "goals"          && React.createElement(GoalsScreen,        null),
+          active === "subscriptions"  && React.createElement(RecurringScreen,    null),
+          active === "report"         && React.createElement(ReportScreen,       null),
+          active === "expected"       && React.createElement(ExpectedScreen,     null),
+          active === "settings"       && React.createElement(SettingsScreen,     null)
+        )
+      )
+    ),
+    React.createElement(TransactionForm, { open: showAddTx, onClose: () => setShowAddTx(false) })
+  );
 }
 
 function Root() {
-  return /*#__PURE__*/React.createElement(StoreProvider, null, /*#__PURE__*/React.createElement(ToastProvider, null, /*#__PURE__*/React.createElement(App, null)));
+  return React.createElement(StoreProvider, null,
+    React.createElement(ToastProvider, null,
+      React.createElement(App, null)
+    )
+  );
 }
-ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(Root, null));
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Root, null));
