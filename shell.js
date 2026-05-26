@@ -114,7 +114,8 @@ function Sidebar({
   active,
   setActive,
   cloudEnabled,
-  session
+  session,
+  setSession
 }) {
   const {
     state,
@@ -351,13 +352,32 @@ function Sidebar({
       letterSpacing: "0.08em"
     }
   }, role === "owner" ? "Admin · full" : "Limited · log only")),
-    cloudEnabled && session && /*#__PURE__*/React.createElement(IconBtn, {
-      icon: ICONS.lock,
-      title: "Sign out",
+    cloudEnabled && session && /*#__PURE__*/React.createElement("button", {
       onClick: async () => {
         try { await window.sbSignOut(); } catch (e) { console.warn(e); }
       },
-    })
+      title: "Sign out",
+      style: {
+        all: "unset",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 10px",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--border)",
+        fontSize: 11,
+        fontWeight: 600,
+        color: "var(--muted)",
+        fontFamily: "var(--font-ui)",
+        marginTop: 6,
+        width: "100%",
+        justifyContent: "center"
+      }
+    },
+      /*#__PURE__*/React.createElement(Glyph, { d: ICONS.lock, size: 12 }),
+      "Sign out"
+    )
   )));
 }
 
