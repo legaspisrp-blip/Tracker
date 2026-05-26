@@ -358,11 +358,11 @@ function StoreProvider({ children }) {
       const alreadyThisMonth = lg && lg.getFullYear() === today.getFullYear() && lg.getMonth() === today.getMonth();
       if (alreadyThisMonth) continue;
       if (today.getDate() < (r.dueDay || 1)) continue;
-      // Skip if planned expense already exists for this rule this month
-      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+      // Skip if ANY entry (pending OR completed) exists for this rule this month
+      const alreadyExists = (state.plannedExpenses || []).some(pe =>
         pe.recurringId === r.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
       );
-      if (!alreadyPlanned) {
+      if (!alreadyExists) {
         const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), r.dueDay));
         dispatch({ type: "ADD_PLANNED_EXPENSE", payload: {
           particular: r.particular, amount: r.amount, dueDate,
@@ -381,10 +381,11 @@ function StoreProvider({ children }) {
     const thisMonthStr = dateISO(today).slice(0, 7);
     for (const debt of state.debts) {
       if (debt.status !== "active") continue;
-      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+      // Check pending AND completed — if either exists, skip (user handled it)
+      const alreadyExists = (state.plannedExpenses || []).some(pe =>
         pe.debtId === debt.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
       );
-      if (alreadyPlanned) continue;
+      if (alreadyExists) continue;
       const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), debt.dueDay || 1));
       dispatch({ type: "ADD_PLANNED_EXPENSE", payload: {
         particular: "Payment · " + debt.name,
@@ -396,19 +397,19 @@ function StoreProvider({ children }) {
         status: "pending"
       }});
     }
-  }, [state.debts.length, state.debts.filter(d => d.status === "active").length]); // eslint-disable-line
+  }, [state.debts.length]); // eslint-disable-line
 
-  // Auto-generate monthly planned expenses for credit minimum payments (due 1st of month)
+  // Auto-generate monthly planned expenses for credit minimum payments
   React.useEffect(() => {
     const today = new Date();
     const thisMonthStr = dateISO(today).slice(0, 7);
     for (const credit of state.creditAccounts) {
-      if (!credit.balance || credit.balance <= 0) continue; // skip if no balance
-      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+      if (!credit.balance || credit.balance <= 0) continue;
+      // Check pending AND completed — if either exists, skip (user handled it)
+      const alreadyExists = (state.plannedExpenses || []).some(pe =>
         pe.creditId === credit.id && pe.dueDate && pe.dueDate.slice(0, 7) === thisMonthStr
       );
-      if (alreadyPlanned) continue;
-      // Due on the credit account's dueDay or 1st by default
+      if (alreadyExists) continue;
       const dueDay = credit.dueDay || 1;
       const dueDate = dateISO(new Date(today.getFullYear(), today.getMonth(), dueDay));
       const minPay = credit.minPayment || Math.max(500, Math.round((credit.balance || 0) * 0.05));
@@ -422,7 +423,7 @@ function StoreProvider({ children }) {
         status: "pending"
       }});
     }
-  }, [state.creditAccounts.length, state.creditAccounts.map(c => c.balance).join(",")]); // eslint-disable-line
+  }, [state.creditAccounts.length]); // eslint-disable-line
 
   return React.createElement(StoreContext.Provider, { value: { state, actions, computed } }, children);
 }
