@@ -115,14 +115,15 @@ function Sidebar({
   setActive,
   cloudEnabled,
   session,
-  setSession
+  setSession,
+  userRole
 }) {
   const {
     state,
     actions,
     computed
   } = useStore();
-  const role = (userRole || state.settings.userRole) === "assistant" ? "assistant" : "owner";
+  const role = (userRole || state.settings.userRole || state.session.role || "owner") === "assistant" ? "assistant" : "owner";
   const perms = ROLE_PERMS[role] || ROLE_PERMS.owner;
   const visible = NAV.filter(n => perms.canSee.includes(n.id));
   const groups = [...new Set(visible.map(v => v.group))];
@@ -358,21 +359,11 @@ function Sidebar({
       },
       title: "Sign out",
       style: {
-        all: "unset",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "5px 10px",
-        borderRadius: "var(--radius)",
-        border: "1px solid var(--border)",
-        fontSize: 11,
-        fontWeight: 600,
-        color: "var(--muted)",
-        fontFamily: "var(--font-ui)",
-        marginTop: 6,
-        width: "100%",
-        justifyContent: "center"
+        all: "unset", cursor: "pointer", display: "flex", alignItems: "center",
+        gap: 6, padding: "5px 10px", borderRadius: "var(--radius)",
+        border: "1px solid var(--border)", fontSize: 11, fontWeight: 600,
+        color: "var(--muted)", fontFamily: "var(--font-ui)",
+        marginTop: 6, width: "100%", justifyContent: "center", boxSizing: "border-box"
       }
     },
       /*#__PURE__*/React.createElement(Glyph, { d: ICONS.lock, size: 12 }),
