@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ledger · Personal Finance Dashboard</title>
 
-  <!--
-    Content Security Policy — updated to allow Supabase connections.
-  -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' https://unpkg.com;
@@ -56,18 +53,23 @@
   <!-- Supabase client -->
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
 
-  <!-- Your Supabase credentials — edit this file -->
+  <!-- Your Supabase credentials -->
   <script src="supabase-config.js"></script>
+
+  <!-- Supabase auth + sync helpers -->
+  <script src="supabase-sync.js"></script>
 
   <!-- React -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 
+  <!-- App -->
   <script src="theme.js"></script>
   <script src="ui.js"></script>
   <script src="store.js"></script>
   <script src="charts.js"></script>
   <script src="shell.js"></script>
+  <script src="cloud-bridge.js"></script>
   <script src="screens-transactions.js"></script>
   <script src="screens-overview.js"></script>
   <script src="screens-calendar.js"></script>
@@ -75,6 +77,7 @@
   <script src="screens-plan.js"></script>
   <script src="screens-analyze.js"></script>
   <script src="screens-reports.js"></script>
+  <script src="screens-expected.js"></script>
   <script src="screens-settings.js"></script>
   <script src="app.js"></script>
 </body>
