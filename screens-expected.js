@@ -114,11 +114,11 @@ function CompleteExpenseModal({ item, onClose }) {
 // ---------------------------------------------------------------------------
 // Add/Edit Expected Income Modal
 // ---------------------------------------------------------------------------
-function ExpectedIncomeForm({ item, onClose }) {
+function ExpectedIncomeEditor({ item, onClose }) {
   const { state, actions } = useStore();
   const toast = useToast();
   const editing = !!item;
-  const [form, setForm] = useState(item || {
+  const [form, setForm] = useState(item ? { currency: "PHP", ...item } : {
     source: "", amount: "", expectedDate: todayISO(), confidence: "medium", currency: "PHP", note: ""
   });
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -146,8 +146,16 @@ function ExpectedIncomeForm({ item, onClose }) {
         React.createElement(Input, { value: form.source, onChange: v => setField("source", v), placeholder: "e.g. Client A \xb7 Timesheet May" })
       ),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
-        React.createElement(Field, { label: "Expected amount (\u20B1)", required: true },
-          React.createElement(Input, { type: "number", mono: true, step: "0.01", min: "0", value: form.amount, onChange: v => setField("amount", v) })
+        React.createElement(Field, { label: "Expected amount", required: true },
+          React.createElement("div", { style: { display: "flex", gap: 6 } },
+            React.createElement(Select, {
+              value: form.currency || "PHP",
+              onChange: v => setField("currency", v),
+              options: [{ value: "PHP", label: "PHP ₱" }, { value: "USD", label: "USD $" }],
+              style: { width: 110 }
+            }),
+            React.createElement(Input, { type: "number", mono: true, step: "0.01", min: "0", value: form.amount, onChange: v => setField("amount", v) })
+          )
         ),
         React.createElement(Field, { label: "Expected date" },
           React.createElement(Input, { type: "date", value: form.expectedDate, onChange: v => setField("expectedDate", v) })
@@ -174,7 +182,7 @@ function ExpectedIncomeForm({ item, onClose }) {
 // ---------------------------------------------------------------------------
 // Add/Edit Planned Expense Modal
 // ---------------------------------------------------------------------------
-function PlannedExpenseForm({ item, onClose }) {
+function PlannedExpenseEditor({ item, onClose }) {
   const { state, actions } = useStore();
   const toast = useToast();
   const editing = !!item;
@@ -406,8 +414,8 @@ function ExpectedScreen() {
     ),
 
     // Modals
-    (showIncomeForm || editIncome) && React.createElement(ExpectedIncomeForm, { item: editIncome, onClose: () => { setShowIncomeForm(false); setEditIncome(null); } }),
-    (showExpenseForm || editExpense) && React.createElement(PlannedExpenseForm, { item: editExpense, onClose: () => { setShowExpenseForm(false); setEditExpense(null); } }),
+    (showIncomeForm || editIncome) && React.createElement(ExpectedIncomeEditor, { item: editIncome, onClose: () => { setShowIncomeForm(false); setEditIncome(null); } }),
+    (showExpenseForm || editExpense) && React.createElement(PlannedExpenseEditor, { item: editExpense, onClose: () => { setShowExpenseForm(false); setEditExpense(null); } }),
     realizeItem && React.createElement(RealizeIncomeModal, { item: realizeItem, onClose: () => setRealizeItem(null) }),
     completeItem && React.createElement(CompleteExpenseModal, { item: completeItem, onClose: () => setCompleteItem(null) })
   );
@@ -415,8 +423,8 @@ function ExpectedScreen() {
 
 Object.assign(window, {
   ExpectedScreen,
-  ExpectedIncomeForm,
-  PlannedExpenseForm,
+  ExpectedIncomeEditor,
+  PlannedExpenseEditor,
   RealizeIncomeModal,
   CompleteExpenseModal
 });
