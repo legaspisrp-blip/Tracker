@@ -9,6 +9,7 @@ function App() {
   const [active, setActive] = useState("overview");
   const [showAddTx, setShowAddTx] = useState(false);
   const [session, setSession] = useState(null);
+  const [userRole, setUserRole] = useState("owner");
   const [authChecked, setAuthChecked] = useState(!isSupabaseEnabled());
 
   // Apply theme as CSS vars on body
@@ -21,14 +22,28 @@ function App() {
     document.body.style.fontFamily = vars["--font-ui"];
   }, [state.settings.variant, state.settings.mode, state.settings.accent]);
 
-  // Check Supabase auth on mount
+  // Check Supabase auth on mount and fetch role
   useEffect(() => {
     if (!isSupabaseEnabled()) return;
-    sbGetSession().then(s => {
+    sbGetSession().then(async s => {
       setSession(s);
+      if (s && s.user && s.user.email) {
+        const role = await sbGetUserRole(s.user.email);
+        setUserRole(role);
+        actions.setSetting("userRole", role);
+      }
       setAuthChecked(true);
     });
-    const unsub = sbOnAuthChange(s => setSession(s));
+    const unsub = sbOnAuthChange(async s => {
+      setSession(s);
+      if (s && s.user && s.user.email) {
+        const role = await sbGetUserRole(s.user.email);
+        setUserRole(role);
+        actions.setSetting("userRole", role);
+      } else {
+        setUserRole("owner");
+      }
+    });
     return unsub;
   }, []);
 
@@ -67,7 +82,7 @@ function App() {
   },
     // Cloud sync — mounts only when Supabase is enabled and user is signed in
     isSupabaseEnabled() && session && React.createElement(CloudSync, { session, setSession }),
-    React.createElement(Sidebar, { active, setActive, cloudEnabled: isSupabaseEnabled(), session, setSession }),
+    React.createElement(Sidebar, { active, setActive, cloudEnabled: isSupabaseEnabled(), session, setSession, userRole }),
     React.createElement("main", {
       style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }
     },
@@ -89,8 +104,8 @@ function App() {
           active === "budgets"        && React.createElement(BudgetsScreen,      null),
           active === "goals"          && React.createElement(GoalsScreen,        null),
           active === "subscriptions"  && React.createElement(RecurringScreen,    null),
-          active === "report"         && React.createElement(ReportScreen,       null),
-          active === "expected"       && React.createElement(ExpectedScreen,     null),
+          active === "report"         && React.createElement(ReportScreen,       { userRole, session }),
+          active === "expected"       && React.createElement(ExpectedScreen,     { userRole }),
           active === "settings"       && React.createElement(SettingsScreen,     null)
         )
       )
