@@ -52,7 +52,7 @@ function SettingsScreen() {
       fontWeight: section === s.id ? 600 : 500,
       borderRadius: "var(--radius)"
     }
-  }, s.label)))), /*#__PURE__*/React.createElement("div", null, section === "profile" && /*#__PURE__*/React.createElement(ProfileSection, null), section === "appearance" && /*#__PURE__*/React.createElement(AppearanceSection, null), section === "categories" && /*#__PURE__*/React.createElement(CategoriesSection, null), section === "accounts" && /*#__PURE__*/React.createElement(AccountsSection, null), section === "data" && /*#__PURE__*/React.createElement(DataSection, null)));
+  }, s.label)))), /*#__PURE__*/React.createElement("div", null, section === "profile" && /*#__PURE__*/React.createElement(ProfileSection, null), section === "appearance" && /*#__PURE__*/React.createElement(AppearanceSection, null), section === "categories" && /*#__PURE__*/React.createElement(CategoriesSection, null), section === "accounts" && /*#__PURE__*/React.createElement(AccountsSection, null), section === "data" && /*#__PURE__*/React.createElement(DataSection, null), section === "team" && /*#__PURE__*/React.createElement(TeamSection, null)));
 }
 function ProfileSection() {
   const {
@@ -880,6 +880,103 @@ function DataSection() {
     }
   }));
 }
+
+// ---------------------------------------------------------------------------
+// TeamSection — manage assistant accounts
+// ---------------------------------------------------------------------------
+function TeamSection() {
+  const { state } = useStore();
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const isOwner = state.settings.userRole !== "assistant";
+
+  useEffect(() => {
+    if (!isOwner) return;
+    sbListUserRoles().then(rows => {
+      setMembers(rows);
+      setLoading(false);
+    });
+  }, []);
+
+  const onAdd = async () => {
+    if (!email) { toast("Enter an email.", "error"); return; }
+    setBusy(true);
+    const { data: { user } } = await window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY).auth.getUser();
+    const { error } = await sbAddUserRole(email.trim().toLowerCase(), "assistant", user?.id);
+    if (error) { toast("Failed to add: " + error.message, "error"); }
+    else {
+      toast("Assistant added. They can now sign up/log in with that email.", "success");
+      setEmail("");
+      const rows = await sbListUserRoles();
+      setMembers(rows);
+    }
+    setBusy(false);
+  };
+
+  const onRemove = async (memberEmail) => {
+    await sbRemoveUserRole(memberEmail);
+    toast("Removed.", "success");
+    const rows = await sbListUserRoles();
+    setMembers(rows);
+  };
+
+  if (!isOwner) {
+    return /*#__PURE__*/React.createElement(Panel, { title: "Team" },
+      /*#__PURE__*/React.createElement(Empty, { icon: ICONS.lock, title: "Owner only", body: "Only the owner can manage team members.", padding: 40 })
+    );
+  }
+
+  return /*#__PURE__*/React.createElement(Panel, { title: "Team · manage assistants" },
+    /*#__PURE__*/React.createElement("div", { style: { padding: 16, display: "flex", flexDirection: "column", gap: 16 } },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, color: "var(--muted)", lineHeight: 1.6 } },
+        "Add an assistant by their email. They sign up or log in with that email and automatically get limited access — they can add and edit transactions, mark expenses as paid, and send you reports. They cannot delete, see balances, or access analytics."
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+        /*#__PURE__*/React.createElement(Input, {
+          type: "email",
+          value: email,
+          onChange: setEmail,
+          placeholder: "assistant@email.com",
+          style: { flex: 1 }
+        }),
+        /*#__PURE__*/React.createElement(Button, {
+          variant: "primary",
+          onClick: onAdd,
+          disabled: busy || !email
+        }, busy ? "Adding…" : "Add assistant")
+      ),
+      loading
+        ? /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, color: "var(--muted)" } }, "Loading…")
+        : members.length === 0
+          ? /*#__PURE__*/React.createElement("div", { style: { fontSize: 12, color: "var(--faint)", fontStyle: "italic" } }, "No assistants added yet.")
+          : /*#__PURE__*/React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
+              /*#__PURE__*/React.createElement("thead", null,
+                /*#__PURE__*/React.createElement("tr", { style: { fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--faint)", fontWeight: 600 } },
+                  /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 14px" }) }, "Email"),
+                  /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 14px" }) }, "Role"),
+                  /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 14px", align: "right" }) })
+                )
+              ),
+              /*#__PURE__*/React.createElement("tbody", null,
+                members.map(m => /*#__PURE__*/React.createElement("tr", { key: m.id, style: { borderTop: "1px solid var(--border)" } },
+                  /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 14px", weight: 500 }) }, m.email),
+                  /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 14px" }) },
+                    /*#__PURE__*/React.createElement(Chip, { tone: "muted" }, m.role)
+                  ),
+                  /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 14px", align: "right" }) },
+                    /*#__PURE__*/React.createElement(Button, { size: "sm", danger: true, onClick: () => onRemove(m.email) }, "Remove")
+                  )
+                ))
+              )
+            )
+    )
+  );
+}
+
 Object.assign(window, {
   SettingsScreen
 });
