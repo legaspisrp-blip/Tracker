@@ -628,34 +628,38 @@ function DataSection() {
   const [migrateResult, setMigrateResult] = useState(null);
 
   const onMigrateAuto = () => {
-    // Find all AUTO-tagged transactions (from old recurring system)
-    const autoTxs = state.transactions.filter(t => t.recurringId);
+    // Find all AUTO-tagged transactions (recurring OR debt-linked)
+    const autoTxs = state.transactions.filter(t => t.recurringId || t.debtId);
     if (autoTxs.length === 0) {
       toast("No AUTO transactions found to migrate.", "success");
+      setConfirmMigrate(false);
       return;
     }
 
-    const thisMonthStr = todayISO().slice(0, 7);
     let created = 0;
     let skipped = 0;
     let deleted = 0;
 
-    // For each AUTO transaction, check if a planned expense already exists
     autoTxs.forEach(tx => {
       const txMonthStr = tx.date ? tx.date.slice(0, 7) : "";
-      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
-        pe.recurringId === tx.recurringId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr
-      );
+      const existingPlanned = (state.plannedExpenses || []);
+
+      // Check if planned expense already exists for this tx
+      const alreadyPlanned = existingPlanned.some(pe => {
+        if (tx.recurringId && pe.recurringId === tx.recurringId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr) return true;
+        if (tx.debtId && pe.debtId === tx.debtId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr) return true;
+        return false;
+      });
 
       if (!alreadyPlanned) {
-        // Create planned expense from this AUTO transaction
         actions.addPlannedExpense({
           particular: tx.particular,
           amount: tx.amount,
           dueDate: tx.date,
           categoryId: tx.categoryId,
-          accountId: tx.accountId,
-          recurringId: tx.recurringId,
+          accountId: tx.accountId || null,
+          recurringId: tx.recurringId || null,
+          debtId: tx.debtId || null,
           note: "Migrated from AUTO transaction.",
           status: "pending"
         });
@@ -664,13 +668,13 @@ function DataSection() {
         skipped++;
       }
 
-      // Delete the AUTO transaction (reverses balance)
+      // Delete AUTO transaction — reverses its effect on account balance
       actions.deleteTransaction(tx.id);
       deleted++;
     });
 
     setMigrateResult({ deleted, created, skipped });
-    toast(`Migrated: ${deleted} AUTO transactions removed, ${created} planned expenses created.`, "success");
+    toast("Migrated: " + deleted + " removed, " + created + " planned expenses created, " + skipped + " already existed.", "success");
     setConfirmMigrate(false);
   };
   const onExport = () => {
