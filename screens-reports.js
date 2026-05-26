@@ -93,6 +93,10 @@ function ReportScreen() {
     label: "3 · Cash Flow Report",
     sub: "Opening → closing"
   }, {
+    id: "expected-actual",
+    label: "Expected vs Actual",
+    sub: "Forecast accuracy"
+  }, {
     id: "summary",
     label: "4 · Health Summary",
     sub: "Score + advice"
@@ -123,7 +127,7 @@ function ReportScreen() {
       color: "var(--muted)",
       fontFamily: "var(--font-mono)"
     }
-  }, t.sub))))), tab === "income-statement" && /*#__PURE__*/React.createElement(IncomeStatement, null), tab === "ledger" && /*#__PURE__*/React.createElement(PersonalLedger, null), tab === "cash-flow" && /*#__PURE__*/React.createElement(CashFlow, null), tab === "summary" && /*#__PURE__*/React.createElement(HealthSummary, null));
+  }, t.sub))))), tab === "income-statement" && /*#__PURE__*/React.createElement(IncomeStatement, null), tab === "ledger" && /*#__PURE__*/React.createElement(PersonalLedger, null), tab === "cash-flow" && /*#__PURE__*/React.createElement(CashFlow, null), tab === "summary" && /*#__PURE__*/React.createElement(HealthSummary, null), tab === "expected-actual" && /*#__PURE__*/React.createElement(ExpectedActualReport, null));
 }
 
 // ============================================================================
@@ -839,6 +843,103 @@ function HealthSummary() {
     }
   }, i.body)))))))));
 }
+
+// ---------------------------------------------------------------------------
+// ExpectedActualReport — 5th report tab
+// ---------------------------------------------------------------------------
+function ExpectedActualReport() {
+  const { state } = useStore();
+  const incomes = state.expectedIncome || [];
+  const expenses = state.plannedExpenses || [];
+
+  const expIncome = incomes.reduce((s, e) => s + (e.amount || 0), 0);
+  const actIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
+  const expExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const actExpense = expenses.filter(e => e.status === "completed").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
+  const expNet = expIncome - expExpense;
+  const actNet = actIncome - actExpense;
+
+  const row = (label, exp, act, incomeDir) => {
+    const variance = act - exp;
+    const good = incomeDir ? variance >= 0 : variance <= 0;
+    return /*#__PURE__*/React.createElement("tr", { style: { borderTop: "1px solid var(--border)" } },
+      /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 20px", weight: 600 }) }, label),
+      /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 20px", align: "right", mono: true }) }, fmtMoney(exp, { dec: 2 })),
+      /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 20px", align: "right", mono: true, color: incomeDir ? "var(--up)" : "var(--down)" }) }, fmtMoney(act, { dec: 2 })),
+      /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "10px 20px", align: "right", mono: true, color: good ? "var(--up)" : "var(--down)" }) }, (variance >= 0 ? "+" : "") + fmtMoney(variance, { dec: 2 }))
+    );
+  };
+
+  return /*#__PURE__*/React.createElement("div", { style: { padding: "20px 26px", display: "flex", flexDirection: "column", gap: 24 } },
+    /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("h2", { style: { margin: "0 0 4px", fontFamily: "var(--font-display)", fontSize: 18, fontWeight: "var(--display-weight)" } }, "Expected vs Actual Summary"),
+      /*#__PURE__*/React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--muted)" } }, "Compares your forecasted income and planned expenses against what actually happened.")
+    ),
+    /*#__PURE__*/React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
+      /*#__PURE__*/React.createElement("thead", null,
+        /*#__PURE__*/React.createElement("tr", { style: { fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--faint)", fontWeight: 600 } },
+          /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 20px" }) }, "Category"),
+          /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 20px", align: "right" }) }, "Expected"),
+          /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 20px", align: "right" }) }, "Actual"),
+          /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "8px 20px", align: "right" }) }, "Variance")
+        )
+      ),
+      /*#__PURE__*/React.createElement("tbody", null,
+        row("Income", expIncome, actIncome, true),
+        row("Expenses", expExpense, actExpense, false),
+        /*#__PURE__*/React.createElement("tr", { style: { borderTop: "2px solid var(--border-hi)", background: "var(--panel-alt)" } },
+          /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "12px 20px", weight: 700 }) }, "Net"),
+          /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "12px 20px", align: "right", mono: true, weight: 700 }) }, fmtMoney(expNet, { dec: 2 })),
+          /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "12px 20px", align: "right", mono: true, weight: 700, color: actNet >= 0 ? "var(--up)" : "var(--down)" }) }, fmtMoney(actNet, { dec: 2 })),
+          /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "12px 20px", align: "right", mono: true, weight: 700, color: actNet >= expNet ? "var(--up)" : "var(--down)" }) }, (actNet - expNet >= 0 ? "+" : "") + fmtMoney(actNet - expNet, { dec: 2 }))
+        )
+      )
+    ),
+    incomes.length > 0 && /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 13, fontWeight: 600 } }, "Income breakdown"),
+      /*#__PURE__*/React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
+        /*#__PURE__*/React.createElement("thead", null,
+          /*#__PURE__*/React.createElement("tr", { style: { fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--faint)", fontWeight: 600 } },
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px" }) }, "Source"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px", align: "right" }) }, "Expected"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px", align: "right" }) }, "Received"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px" }) }, "Status")
+          )
+        ),
+        /*#__PURE__*/React.createElement("tbody", null,
+          incomes.map(e => /*#__PURE__*/React.createElement("tr", { key: e.id, style: { borderTop: "1px solid var(--border)" } },
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", weight: 500 }) }, e.source),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true }) }, fmtMoney(e.amount, { dec: 2 })),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true, color: "var(--up)" }) }, e.status === "received" ? fmtMoney(e.actualAmount || e.amount, { dec: 2 }) : "—"),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px" }) }, /*#__PURE__*/React.createElement(Chip, { tone: e.status === "received" ? "up" : "muted" }, e.status || "pending"))
+          ))
+        )
+      )
+    ),
+    expenses.length > 0 && /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 13, fontWeight: 600 } }, "Expense breakdown"),
+      /*#__PURE__*/React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
+        /*#__PURE__*/React.createElement("thead", null,
+          /*#__PURE__*/React.createElement("tr", { style: { fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--faint)", fontWeight: 600 } },
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px" }) }, "Particular"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px", align: "right" }) }, "Planned"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px", align: "right" }) }, "Paid"),
+            /*#__PURE__*/React.createElement("th", { style: cellStyle({ pad: "6px 14px" }) }, "Status")
+          )
+        ),
+        /*#__PURE__*/React.createElement("tbody", null,
+          expenses.map(e => /*#__PURE__*/React.createElement("tr", { key: e.id, style: { borderTop: "1px solid var(--border)" } },
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", weight: 500 }) }, e.particular),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true }) }, fmtMoney(e.amount, { dec: 2 })),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px", align: "right", mono: true, color: "var(--down)" }) }, e.status === "completed" ? fmtMoney(e.actualAmount || e.amount, { dec: 2 }) : "—"),
+            /*#__PURE__*/React.createElement("td", { style: cellStyle({ pad: "8px 14px" }) }, /*#__PURE__*/React.createElement(Chip, { tone: e.status === "completed" ? "up" : "muted" }, e.status || "pending"))
+          ))
+        )
+      )
+    )
+  );
+}
+
 Object.assign(window, {
   ReportScreen,
   IncomeStatement,
