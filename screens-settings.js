@@ -624,6 +624,55 @@ function DataSection() {
   } = useStore();
   const toast = useToast();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmMigrate, setConfirmMigrate] = useState(false);
+  const [migrateResult, setMigrateResult] = useState(null);
+
+  const onMigrateAuto = () => {
+    // Find all AUTO-tagged transactions (from old recurring system)
+    const autoTxs = state.transactions.filter(t => t.recurringId);
+    if (autoTxs.length === 0) {
+      toast("No AUTO transactions found to migrate.", "success");
+      return;
+    }
+
+    const thisMonthStr = todayISO().slice(0, 7);
+    let created = 0;
+    let skipped = 0;
+    let deleted = 0;
+
+    // For each AUTO transaction, check if a planned expense already exists
+    autoTxs.forEach(tx => {
+      const txMonthStr = tx.date ? tx.date.slice(0, 7) : "";
+      const alreadyPlanned = (state.plannedExpenses || []).some(pe =>
+        pe.recurringId === tx.recurringId && pe.dueDate && pe.dueDate.slice(0, 7) === txMonthStr
+      );
+
+      if (!alreadyPlanned) {
+        // Create planned expense from this AUTO transaction
+        actions.addPlannedExpense({
+          particular: tx.particular,
+          amount: tx.amount,
+          dueDate: tx.date,
+          categoryId: tx.categoryId,
+          accountId: tx.accountId,
+          recurringId: tx.recurringId,
+          note: "Migrated from AUTO transaction.",
+          status: "pending"
+        });
+        created++;
+      } else {
+        skipped++;
+      }
+
+      // Delete the AUTO transaction (reverses balance)
+      actions.deleteTransaction(tx.id);
+      deleted++;
+    });
+
+    setMigrateResult({ deleted, created, skipped });
+    toast(`Migrated: ${deleted} AUTO transactions removed, ${created} planned expenses created.`, "success");
+    setConfirmMigrate(false);
+  };
   const onExport = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], {
       type: "application/json"
@@ -754,7 +803,32 @@ function DataSection() {
       justifyContent: "center",
       padding: "10px 14px"
     }
-  }, "Reset everything")), /*#__PURE__*/React.createElement("div", {
+  }, "Reset everything")),
+  /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "14px 16px",
+      border: "1px solid var(--border)",
+      borderRadius: "var(--radius)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 8
+    }
+  },
+    /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }
+    }, "Migration"),
+    /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }
+    }, "Move AUTO-tagged recurring transactions to Expected vs Actual as planned expenses. Run this once after updating to the new system."),
+    migrateResult && /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 12, padding: "8px 10px", background: "var(--accent-soft)", borderRadius: "var(--radius)", color: "var(--accent)" }
+    }, migrateResult.deleted, " transactions removed · ", migrateResult.created, " planned expenses created · ", migrateResult.skipped, " already existed"),
+    /*#__PURE__*/React.createElement(Button, {
+      onClick: () => setConfirmMigrate(true),
+      icon: ICONS.arrow,
+      style: { justifyContent: "center", padding: "10px 14px" }
+    }, "Migrate AUTO transactions → planned expenses")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: 12,
       background: "var(--panel-alt)",
