@@ -122,7 +122,7 @@ function Sidebar({
     actions,
     computed
   } = useStore();
-  const role = userRole === "assistant" ? "assistant" : "owner";
+  const role = (userRole || state.settings.userRole) === "assistant" ? "assistant" : "owner";
   const perms = ROLE_PERMS[role] || ROLE_PERMS.owner;
   const visible = NAV.filter(n => perms.canSee.includes(n.id));
   const groups = [...new Set(visible.map(v => v.group))];
