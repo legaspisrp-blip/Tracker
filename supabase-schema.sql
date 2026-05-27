@@ -1,58 +1,57 @@
 -- ============================================================================
--- Ledger · Supabase schema (auth version)
--- Run this ONCE in your Supabase project SQL editor.
--- Dashboard -> SQL Editor -> New Query -> paste -> Run
---
--- This version uses Supabase Auth. Each user gets their own private row.
--- Row-Level Security ensures no user can see another user's data.
+-- Ledger · Full schema reset — run this in Supabase SQL Editor
+-- This replaces all previous schemas with the correct auth-based version
 -- ============================================================================
 
--- Drop old no-auth table
+-- Drop everything and start clean
+drop table if exists public.user_roles;
 drop table if exists public.user_data;
 
--- One row per authenticated user
-create table if not exists public.user_data (
+-- ── user_data ──────────────────────────────────────────────────────────────
+create table public.user_data (
   user_id    uuid primary key references auth.users(id) on delete cascade,
   data       jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
--- Enable Row-Level Security
 alter table public.user_data enable row level security;
 
--- Each user can only read their own row
-drop policy if exists "user_data_select_own" on public.user_data;
-create policy "user_data_select_own"
-  on public.user_data for select
-  using (auth.uid() = user_id);
+create policy "user_data_select" on public.user_data
+  for select using (auth.uid() = user_id);
+create policy "user_data_insert" on public.user_data
+  for insert with check (auth.uid() = user_id);
+create policy "user_data_update" on public.user_data
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- Each user can only insert their own row
-drop policy if exists "user_data_insert_own" on public.user_data;
-create policy "user_data_insert_own"
-  on public.user_data for insert
-  with check (auth.uid() = user_id);
+-- ── user_roles ─────────────────────────────────────────────────────────────
+create table public.user_roles (
+  id         uuid primary key default gen_random_uuid(),
+  email      text not null unique,
+  role       text not null default 'assistant',
+  added_by   uuid references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
 
--- Each user can only update their own row
-drop policy if exists "user_data_update_own" on public.user_data;
-create policy "user_data_update_own"
-  on public.user_data for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+alter table public.user_roles enable row level security;
 
--- Keep updated_at fresh on every write
-create or replace function public.touch_user_data_updated_at()
+create policy "roles_select" on public.user_roles
+  for select using (auth.uid() is not null);
+create policy "roles_insert" on public.user_roles
+  for insert with check (auth.uid() = added_by);
+create policy "roles_update" on public.user_roles
+  for update using (auth.uid() = added_by);
+create policy "roles_delete" on public.user_roles
+  for delete using (auth.uid() = added_by);
+
+grant select, insert, update on public.user_data to authenticated;
+grant select, insert, update, delete on public.user_roles to authenticated;
+
+-- ── updated_at trigger ─────────────────────────────────────────────────────
+create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
+begin new.updated_at = now(); return new; end; $$;
 
-drop trigger if exists set_user_data_updated_at on public.user_data;
-create trigger set_user_data_updated_at
+drop trigger if exists set_updated_at on public.user_data;
+create trigger set_updated_at
   before update on public.user_data
-  for each row execute function public.touch_user_data_updated_at();
-
--- Verify with:
---   select * from public.user_data;    -- empty until first sign-in
---   select * from auth.users;          -- empty until first sign-up
+  for each row execute function public.touch_updated_at();
