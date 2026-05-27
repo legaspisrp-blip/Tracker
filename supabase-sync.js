@@ -15,7 +15,13 @@
     if (!isSupabaseEnabled()) return null;
     try {
       _client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: "implicit",
+          storage: window.localStorage
+        }
       });
     } catch(e) {
       console.warn("Supabase init failed:", e);
@@ -52,6 +58,17 @@
     const c = initSupabase();
     if (!c) return null;
     try {
+      // First try reading from localStorage directly (fast, no network)
+      const storageKey = "sb-" + window.SUPABASE_URL.split("//")[1].split(".")[0] + "-auth-token";
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.access_token) {
+          // We have a stored session — return it immediately
+          return parsed;
+        }
+      }
+      // No stored session — do network call
       const { data } = await c.auth.getSession();
       return data?.session || null;
     } catch(e) {
