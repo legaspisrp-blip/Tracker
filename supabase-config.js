@@ -17,6 +17,6 @@
 // own data. Never paste the "service_role" key here.
 // ============================================================================
 window.SUPABASE_URL      = "https://rrrzwidshbmkjotylvjr.supabase.co";
-window.SUPABASE_ANON_KEY = "sb_publishable_ORjkFDtsrgtSQ51WcymdwQ_AAvpjdSX";
+window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycnp3aWRzaGJta2pvdHlsdmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTYwMjUsImV4cCI6MjA5NTIzMjAyNX0.VcheyBzjXCt24AVFyqieF62D6MtR1zz2tWbX0ET8AmY";
 
 window.isSupabaseEnabled = () => !!(window.SUPABASE_URL && window.SUPABASE_ANON_KEY);
