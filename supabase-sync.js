@@ -57,25 +57,19 @@
   function getStoredSession() {
     // Read session directly from localStorage without any network call
     try {
-      const url = window.SUPABASE_URL || "";
-      const projectRef = url.replace("https://","").split(".")[0];
-      const keys = [
-        "sb-" + projectRef + "-auth-token",
-        "supabase.auth.token"
-      ];
-      for (const key of keys) {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        // Handle both formats
-        const session = parsed?.currentSession || parsed;
-        if (session && session.access_token && session.user) {
-          // Check not expired
-          const exp = session.expires_at || 0;
-          if (exp > Date.now() / 1000) return session;
-        }
+      // Find the auth token key dynamically
+      const authKey = Object.keys(localStorage).find(k => k.includes("-auth-token") && k.startsWith("sb-"));
+      if (!authKey) return null;
+      const raw = localStorage.getItem(authKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Handle both old and new Supabase storage formats
+      const session = parsed?.currentSession || parsed?.session || parsed;
+      if (session && session.access_token && session.user) {
+        const exp = session.expires_at || 0;
+        if (exp > Date.now() / 1000) return session;
       }
-    } catch(e) {}
+    } catch(e) { console.warn("getStoredSession error:", e); }
     return null;
   }
 
