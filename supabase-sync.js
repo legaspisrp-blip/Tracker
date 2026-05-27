@@ -54,27 +54,37 @@
     return await c.auth.signOut();
   }
 
-  async function sbGetSession() {
-    const c = initSupabase();
-    if (!c) return null;
+  function getStoredSession() {
+    // Read session directly from localStorage without any network call
     try {
-      // First try reading from localStorage directly (fast, no network)
-      const storageKey = "sb-" + window.SUPABASE_URL.split("//")[1].split(".")[0] + "-auth-token";
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.access_token) {
-          // We have a stored session — return it immediately
-          return parsed;
+      const url = window.SUPABASE_URL || "";
+      const projectRef = url.replace("https://","").split(".")[0];
+      const keys = [
+        "sb-" + projectRef + "-auth-token",
+        "supabase.auth.token"
+      ];
+      for (const key of keys) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        // Handle both formats
+        const session = parsed?.currentSession || parsed;
+        if (session && session.access_token && session.user) {
+          // Check not expired
+          const exp = session.expires_at || 0;
+          if (exp > Date.now() / 1000) return session;
         }
       }
-      // No stored session — do network call
-      const { data } = await c.auth.getSession();
-      return data?.session || null;
-    } catch(e) {
-      console.warn("sbGetSession error:", e);
-      return null;
-    }
+    } catch(e) {}
+    return null;
+  }
+
+  async function sbGetSession() {
+    // Try localStorage first — instant, no network
+    const stored = getStoredSession();
+    if (stored) return stored;
+    // No stored session — user needs to sign in
+    return null;
   }
 
   function sbOnAuthChange(cb) {
