@@ -34,37 +34,41 @@ function App() {
       setAuthChecked(true);
     }, 4000);
 
-    sbGetSession().then(async s => {
+    sbGetSession().then(s => {
       clearTimeout(sessionTimeout);
       setSession(s);
+      // Show app immediately - fetch role in background
+      setAuthChecked(true);
       if (s && s.user && s.user.email) {
-        try {
-          const role = await sbGetUserRole(s.user.email);
+        sbGetUserRole(s.user.email).then(role => {
           setUserRole(role);
           actions.setSetting("userRole", role);
-        } catch(e) { console.warn("role fetch failed", e); }
+        }).catch(e => console.warn("role fetch failed", e));
       }
-      setAuthChecked(true);
     }).catch(() => {
       clearTimeout(sessionTimeout);
       setAuthChecked(true);
     });
 
-    // Listen for auth changes (login/logout)
-    const unsub = sbOnAuthChange(async s => {
-      setSession(s);
-      if (s && s.user && s.user.email) {
-        try {
-          const role = await sbGetUserRole(s.user.email);
-          setUserRole(role);
-          actions.setSetting("userRole", role);
-        } catch(e) {}
-      } else {
-        setUserRole("owner");
-        actions.setSetting("userRole", "owner");
-      }
-    });
-    return () => unsub && unsub();
+    // Listen for auth changes (login/logout) - non-blocking
+    try {
+      const unsub = sbOnAuthChange(async s => {
+        setSession(s);
+        if (s && s.user && s.user.email) {
+          try {
+            const role = await sbGetUserRole(s.user.email);
+            setUserRole(role);
+            actions.setSetting("userRole", role);
+          } catch(e) {}
+        } else {
+          setUserRole("owner");
+          actions.setSetting("userRole", "owner");
+        }
+      });
+      return () => unsub && unsub();
+    } catch(e) {
+      console.warn("onAuthChange setup failed:", e);
+    }
   }, []); // eslint-disable-line
 
   // Loading screen while checking auth
