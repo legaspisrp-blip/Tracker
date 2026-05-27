@@ -1,17 +1,6 @@
 // ============================================================================
-// supabase-sync.js — Supabase wrapper: auth + single-row JSON sync
-//
-// Public API (all attached to window):
-//   isSupabaseEnabled()                   - boolean: has URL + anon key
-//   initSupabase()                        - returns client or null
-//   sbSignUp(email, password)             - returns {data, error}
-//   sbSignIn(email, password)             - returns {data, error}
-//   sbSignInWithMagicLink(email)          - returns {data, error}
-//   sbSignOut()                           - returns {error}
-//   sbGetSession()                        - returns current session or null
-//   sbOnAuthChange(cb)                    - subscribe; returns unsubscribe fn
-//   sbFetchData()                         - returns user's data row or null
-//   sbPushData(data)                      - upserts data (debounced via caller)
+// supabase-sync.js — Supabase auth + data sync
+// Uses the legacy eyJ... anon key for proper auth support.
 // ============================================================================
 
 (function () {
@@ -24,91 +13,129 @@
   function initSupabase() {
     if (_client) return _client;
     if (!isSupabaseEnabled()) return null;
-    _client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true },
-    });
+    try {
+      _client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+    } catch(e) {
+      console.warn("Supabase init failed:", e);
+      return null;
+    }
     return _client;
   }
 
   async function sbSignUp(email, password) {
-    const c = initSupabase(); if (!c) return { error: { message: "Supabase not configured" } };
+    const c = initSupabase();
+    if (!c) return { error: { message: "Supabase not configured." } };
     return await c.auth.signUp({ email, password });
   }
 
   async function sbSignIn(email, password) {
-    const c = initSupabase(); if (!c) return { error: { message: "Supabase not configured" } };
+    const c = initSupabase();
+    if (!c) return { error: { message: "Supabase not configured." } };
     return await c.auth.signInWithPassword({ email, password });
   }
 
   async function sbSignInWithMagicLink(email) {
-    const c = initSupabase(); if (!c) return { error: { message: "Supabase not configured" } };
+    const c = initSupabase();
+    if (!c) return { error: { message: "Supabase not configured." } };
     return await c.auth.signInWithOtp({ email });
   }
 
   async function sbSignOut() {
-    const c = initSupabase(); if (!c) return { error: { message: "Supabase not configured" } };
+    const c = initSupabase();
+    if (!c) return { error: null };
     return await c.auth.signOut();
   }
 
   async function sbGetSession() {
-    const c = initSupabase(); if (!c) return null;
-    const { data } = await c.auth.getSession();
-    return data?.session || null;
+    const c = initSupabase();
+    if (!c) return null;
+    try {
+      const { data } = await c.auth.getSession();
+      return data?.session || null;
+    } catch(e) {
+      console.warn("sbGetSession error:", e);
+      return null;
+    }
   }
 
   function sbOnAuthChange(cb) {
-    const c = initSupabase(); if (!c) return () => {};
-    const { data: { subscription } } = c.auth.onAuthStateChange((_event, session) => cb(session));
-    return () => subscription?.unsubscribe();
+    const c = initSupabase();
+    if (!c) return () => {};
+    try {
+      const { data: { subscription } } = c.auth.onAuthStateChange((_event, session) => cb(session));
+      return () => subscription?.unsubscribe();
+    } catch(e) {
+      return () => {};
+    }
   }
 
   async function sbFetchData() {
-    const c = initSupabase(); if (!c) return null;
-    const { data: { user } } = await c.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await c.from("user_data").select("data, updated_at").eq("user_id", user.id).maybeSingle();
-    if (error) {
-      console.warn("Supabase fetch error:", error);
+    const c = initSupabase();
+    if (!c) return null;
+    try {
+      const { data: { user } } = await c.auth.getUser();
+      if (!user) return null;
+      const { data, error } = await c.from("user_data")
+        .select("data, updated_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) { console.warn("sbFetchData error:", error); return null; }
+      return data;
+    } catch(e) {
+      console.warn("sbFetchData exception:", e);
       return null;
     }
-    return data;
   }
 
   async function sbPushData(payload) {
-    const c = initSupabase(); if (!c) return { error: { message: "no client" } };
-    const { data: { user } } = await c.auth.getUser();
-    if (!user) return { error: { message: "not signed in" } };
-    // Strip the session object from the payload before pushing (no need to sync that)
-    const { session, ...toSync } = payload;
-    const { data, error } = await c.from("user_data").upsert(
-      { user_id: user.id, data: toSync, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
-    );
-    if (error) console.warn("Supabase push error:", error);
-    return { data, error };
+    const c = initSupabase();
+    if (!c) return { error: { message: "no client" } };
+    try {
+      const { data: { user } } = await c.auth.getUser();
+      if (!user) return { error: { message: "not signed in" } };
+      const { session: _s, ...toSync } = payload;
+      const { data, error } = await c.from("user_data").upsert(
+        { user_id: user.id, data: toSync, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+      if (error) console.warn("sbPushData error:", error);
+      return { data, error };
+    } catch(e) {
+      console.warn("sbPushData exception:", e);
+      return { error: e };
+    }
   }
 
   async function sbGetUserRole(email) {
-    const c = initSupabase(); if (!c) return "owner";
-    const { data, error } = await c.from("user_roles").select("role").eq("email", email).maybeSingle();
-    if (error || !data) return "owner"; // default to owner if no role set
-    return data.role;
+    const c = initSupabase();
+    if (!c) return "owner";
+    try {
+      const { data } = await c.from("user_roles").select("role").eq("email", email).maybeSingle();
+      return data?.role || "owner";
+    } catch(e) { return "owner"; }
   }
 
   async function sbAddUserRole(email, role, addedBy) {
-    const c = initSupabase(); if (!c) return { error: { message: "no client" } };
+    const c = initSupabase();
+    if (!c) return { error: { message: "no client" } };
     return await c.from("user_roles").upsert({ email, role, added_by: addedBy }, { onConflict: "email" });
   }
 
   async function sbRemoveUserRole(email) {
-    const c = initSupabase(); if (!c) return { error: { message: "no client" } };
+    const c = initSupabase();
+    if (!c) return { error: { message: "no client" } };
     return await c.from("user_roles").delete().eq("email", email);
   }
 
   async function sbListUserRoles() {
-    const c = initSupabase(); if (!c) return [];
-    const { data } = await c.from("user_roles").select("*").order("created_at");
-    return data || [];
+    const c = initSupabase();
+    if (!c) return [];
+    try {
+      const { data } = await c.from("user_roles").select("*").order("created_at");
+      return data || [];
+    } catch(e) { return []; }
   }
 
   Object.assign(window, {
