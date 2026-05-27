@@ -24,6 +24,9 @@ function SettingsScreen() {
   }, {
     id: "data",
     label: "Data"
+  }, {
+    id: "team",
+    label: "Team"
   }];
   return /*#__PURE__*/React.createElement("div", {
     style: {
