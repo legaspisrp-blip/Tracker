@@ -85,9 +85,12 @@
     const c = initSupabase();
     if (!c) return () => {};
     try {
-      const { data: { subscription } } = c.auth.onAuthStateChange((_event, session) => cb(session));
-      return () => subscription?.unsubscribe();
+      const { data: { subscription } } = c.auth.onAuthStateChange((_event, session) => {
+        try { cb(session); } catch(e) { console.warn("auth change cb error:", e); }
+      });
+      return () => { try { subscription?.unsubscribe(); } catch(e) {} };
     } catch(e) {
+      console.warn("onAuthChange error:", e);
       return () => {};
     }
   }
