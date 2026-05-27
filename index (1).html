@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger · Personal Finance Dashboard</title>
+
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data:;
+    connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://unpkg.com;
+    base-uri 'self';
+    form-action 'self';
+  ">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+    body {
+      font-family: "Inter", -apple-system, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #root { min-height: 100vh; }
+    button { font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+    input[type="range"] { accent-color: var(--accent); }
+    ::selection { background: var(--accent-soft); color: var(--text); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border: 2px solid transparent; background-clip: content-box; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background-color: var(--border-hi); background-clip: content-box; }
+    @media print {
+      body { background: white !important; color: black !important; }
+      aside, header, [data-no-print] { display: none !important; }
+      main { width: 100% !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
+
+  <!-- Supabase client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+
+  <!-- Your Supabase credentials -->
+  <script src="supabase-config.js?v=2"></script>
+
+  <!-- EmailJS credentials -->
+  <script src="emailjs-config.js?v=2"></script>
+
+  <!-- Supabase auth + sync helpers -->
+  <script src="supabase-sync.js?v=2"></script>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+
+  <!-- App -->
+  <script src="theme.js?v=2"></script>
+  <script src="ui.js?v=2"></script>
+  <script src="store.js?v=2"></script>
+  <script src="charts.js?v=2"></script>
+  <script src="shell.js?v=2"></script>
+  <script src="cloud-bridge.js?v=2"></script>
+  <script src="screens-transactions.js?v=2"></script>
+  <script src="screens-overview.js?v=2"></script>
+  <script src="screens-calendar.js?v=2"></script>
+  <script src="screens-debt.js?v=2"></script>
+  <script src="screens-plan.js?v=2"></script>
+  <script src="screens-analyze.js?v=2"></script>
+  <script src="screens-reports.js?v=2"></script>
+  <script src="screens-expected.js?v=2"></script>
+  <script src="screens-settings.js?v=2"></script>
+  <script src="app.js?v=2"></script>
+</body>
+</html>
