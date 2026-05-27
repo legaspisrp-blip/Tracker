@@ -28,8 +28,14 @@ function App() {
       return;
     }
 
-    // Check for existing session
+    // Check for existing session with 4s timeout
+    const sessionTimeout = setTimeout(() => {
+      console.warn("Ledger: session check timed out — showing login");
+      setAuthChecked(true);
+    }, 4000);
+
     sbGetSession().then(async s => {
+      clearTimeout(sessionTimeout);
       setSession(s);
       if (s && s.user && s.user.email) {
         try {
@@ -40,6 +46,7 @@ function App() {
       }
       setAuthChecked(true);
     }).catch(() => {
+      clearTimeout(sessionTimeout);
       setAuthChecked(true);
     });
 
