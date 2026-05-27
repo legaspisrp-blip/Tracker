@@ -32,7 +32,7 @@ const EMPTY_STATE = {
   cashAccounts: [], transactions: [], debts: [], creditAccounts: [],
   budgets: [], goals: [], recurring: [], expectedIncome: [],
   plannedExpenses: [],
-  notifications: [], lastBackup: null
+  notifications: [], lastBackup: null, lastUpdated: 0
 };
 
 function reducer(state, action) {
@@ -294,9 +294,12 @@ function loadInitial() {
 function StoreProvider({ children }) {
   const [state, dispatch] = React.useReducer(reducer, undefined, loadInitial);
 
-  // Save to localStorage on every state change
+  // Save to localStorage on every state change + update timestamp
   React.useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+    try {
+      const withTimestamp = { ...state, lastUpdated: Date.now() };
+      localStorage.setItem(LS_KEY, JSON.stringify(withTimestamp));
+    }
     catch (e) { console.warn("Ledger: localStorage save failed", e); }
   }, [state]);
 
