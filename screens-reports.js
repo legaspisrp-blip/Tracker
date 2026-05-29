@@ -158,15 +158,15 @@ function ReportScreen({ userRole, session }) {
     }
   }, [{
     id: "income-statement",
-    label: "Income Statement",
+    label: "1 · Income Statement",
     sub: "Inflows − Outflows"
   }, {
     id: "ledger",
-    label: "Personal Ledger",
+    label: "2 · Personal Ledger",
     sub: "Every transaction"
   }, {
     id: "cash-flow",
-    label: "Cash Flow Report",
+    label: "3 · Cash Flow Report",
     sub: "Opening → closing"
   }, {
     id: "expected-actual",
@@ -174,7 +174,7 @@ function ReportScreen({ userRole, session }) {
     sub: "Forecast accuracy"
   }, {
     id: "summary",
-    label: "Health Summary",
+    label: "4 · Health Summary",
     sub: "Score + advice"
   }].map(t => /*#__PURE__*/React.createElement("button", {
     key: t.id,
@@ -926,7 +926,7 @@ function HealthSummary() {
 function ExpectedActualReport() {
   const { state } = useStore();
   const fxRate = state.settings.fxRate || 58.42;
-  const toPHP = (amount, currency) => currency === "USD" ? (amount || 0) * fxRate : (amount || 0);
+  const toPHP = (amount, currency) => (currency && currency.toUpperCase() === "USD") ? (amount || 0) * fxRate : (amount || 0);
   const incomes = state.expectedIncome || [];
   const expenses = state.plannedExpenses || [];
 
