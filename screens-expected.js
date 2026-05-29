@@ -8,6 +8,8 @@
 function RealizeIncomeModal({ item, onClose }) {
   const { state, actions } = useStore();
   const toast = useToast();
+  const fxRate = state.settings.fxRate || 58.42;
+  const isUSD = item.currency === "USD";
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState(String(item.amount));
   const [accountId, setAccountId] = useState(state.cashAccounts[0]?.id || "");
