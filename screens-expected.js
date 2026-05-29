@@ -286,7 +286,8 @@ function ExpectedScreen() {
   });
 
   const totalExpIncome = incomes.filter(e => e.status !== "received").reduce((s, e) => s + toPHP(e.amount, e.currency), 0);
-  const totalActIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + toPHP(e.actualAmount || e.amount, e.currency), 0);
+  // actualAmount is always stored in PHP — don't apply currency conversion to it
+  const totalActIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + (e.actualAmount || toPHP(e.amount, e.currency)), 0);
   const totalExpExpense = expenses.filter(e => e.status !== "completed").reduce((s, e) => s + (e.amount || 0), 0);
   const totalActExpense = expenses.filter(e => e.status === "completed").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
 
