@@ -931,7 +931,8 @@ function ExpectedActualReport() {
   const expenses = state.plannedExpenses || [];
 
   const expIncome = incomes.reduce((s, e) => s + toPHP(e.amount, e.currency), 0);
-  const actIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + toPHP(e.actualAmount || e.amount, e.currency), 0);
+  // actualAmount is always stored in PHP (entered in the realization modal) — don't convert
+  const actIncome = incomes.filter(e => e.status === "received").reduce((s, e) => s + (e.actualAmount || toPHP(e.amount, e.currency)), 0);
   const expExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const actExpense = expenses.filter(e => e.status === "completed").reduce((s, e) => s + (e.actualAmount || e.amount || 0), 0);
   const expNet = expIncome - expExpense;
