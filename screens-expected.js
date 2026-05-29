@@ -9,7 +9,7 @@ function RealizeIncomeModal({ item, onClose }) {
   const { state, actions } = useStore();
   const toast = useToast();
   const fxRate = state.settings.fxRate || 58.42;
-  const isUSD = item.currency === "USD";
+  const isUSD = item.currency && item.currency.toUpperCase() === "USD";
   const [date, setDate] = useState(todayISO());
   const [amount, setAmount] = useState(String(item.amount));
   const [accountId, setAccountId] = useState(state.cashAccounts[0]?.id || "");
@@ -259,7 +259,7 @@ function statusChip(status, dueDate) {
 function ExpectedScreen() {
   const { state } = useStore();
   const fxRate = state.settings.fxRate || 58.42;
-  const toPHP = (amount, currency) => currency === "USD" ? amount * fxRate : (amount || 0);
+  const toPHP = (amount, currency) => (currency && currency.toUpperCase() === "USD") ? (amount || 0) * fxRate : (amount || 0);
   const [tab, setTab] = useState("income");
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
